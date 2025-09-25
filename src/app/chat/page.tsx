@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
-import { runTextToSpeech } from '@/lib/actions';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceOrb } from '@/components/voice-orb';
@@ -26,17 +25,9 @@ export default function ChatPage() {
     isLoading,
     isListening,
     setIsListening,
-    streamingResponse,
   } = useStreamingChat({
-    onStreamEnd: (finalText) => {
-      // Update the last message with the final complete text
-      setMessages(prev => {
-        const newMessages = [...prev];
-        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
-          newMessages[newMessages.length - 1].content = finalText;
-        }
-        return newMessages;
-      });
+    setMessages,
+    onStreamEnd: () => {
       // Re-enable listening after Meera finishes speaking.
       if (recognitionRef.current && !isListening) {
         startListening();
@@ -92,8 +83,13 @@ export default function ChatPage() {
 
       recognition.onend = () => {
         setIsListening(false);
+        // Automatically restart listening if it wasn't stopped manually
+        if (recognitionRef.current && !finalTranscriptRef.current) {
+          // A brief delay to prevent rapid-fire restarts
+          setTimeout(() => startListening(), 100);
+        }
       };
-
+      
       recognition.onerror = event => {
         if (['aborted', 'no-speech', 'network'].includes(event.error)) {
           return;
@@ -106,8 +102,8 @@ export default function ChatPage() {
 
       recognition.onresult = event => {
         let interimTranscript = '';
-        finalTranscriptRef.current = '';
-        for (let i = 0; i < event.results.length; ++i) {
+        finalTranscriptRef.current = ''; 
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscriptRef.current += event.results[i][0].transcript;
           } else {
@@ -148,9 +144,6 @@ export default function ChatPage() {
     const newMessages: ChatMessage[] = [...messages, userMessage];
     setMessages(newMessages);
 
-    // Add an empty model message to be populated by the stream
-    setMessages(prev => [...prev, { role: 'model', content: '' }]);
-
     setTranscript('');
     finalTranscriptRef.current = '';
 
@@ -188,12 +181,6 @@ export default function ChatPage() {
         </p>
     </div>
   );
-  
-  // Replace the last message with the streaming response if it's loading
-  const displayMessages = [...messages];
-  if (isLoading && displayMessages.length > 0 && displayMessages[displayMessages.length - 1].role === 'model') {
-      displayMessages[displayMessages.length - 1].content = streamingResponse;
-  }
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -202,7 +189,7 @@ export default function ChatPage() {
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
-          <ChatMessages messages={displayMessages} isLoading={isLoading && streamingResponse.length === 0} />
+          <ChatMessages messages={messages} isLoading={isLoading && messages[messages.length-1]?.content === ''} />
         )}
       </main>
       <ChatInput

@@ -1,20 +1,20 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
 import { runChatFlow, runTextToSpeech } from '@/lib/actions';
-import type { StreamingChatInput } from '@/lib/types';
+import type { ChatMessage, StreamingChatInput } from '@/lib/types';
 import { useToast } from './use-toast';
 import { readStreamableValue } from 'ai/rsc';
 
 interface UseStreamingChatProps {
+  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   onStreamEnd?: (finalText: string) => void;
   onStreamError?: (error: Error) => void;
 }
 
-export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingChatProps = {}) {
+export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: UseStreamingChatProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false); // To control mic state from this hook
-  const [streamingResponse, setStreamingResponse] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const { toast } = useToast();
   const audioQueue = useRef<string[]>([]);
   const isPlayingAudio = useRef(false);
@@ -75,7 +75,7 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
 
   const startStream = useCallback(async (input: StreamingChatInput) => {
     setIsLoading(true);
-    setStreamingResponse('');
+    setMessages(prev => [...prev, { role: 'model', content: '' }]);
     audioQueue.current = [];
     isPlayingAudio.current = false;
     if (audioRef.current) {
@@ -89,7 +89,13 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
       for await (const chunk of readStreamableValue(stream)) {
         if (chunk) {
           accumulatedText += chunk;
-          setStreamingResponse(prev => prev + chunk);
+          setMessages(prev => {
+            const newMessages = [...prev];
+            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
+              newMessages[newMessages.length - 1].content += chunk;
+            }
+            return newMessages;
+          });
           processTextForAudio(chunk);
         }
       }
@@ -103,18 +109,25 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      return; // Exit early on error
+      return;
     }
 
     const checkAudio = setInterval(() => {
       if (!isPlayingAudio.current && audioQueue.current.length === 0) {
         clearInterval(checkAudio);
         setIsLoading(false);
+        setMessages(prev => {
+            const newMessages = [...prev];
+            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
+              newMessages[newMessages.length - 1].content = accumulatedText;
+            }
+            return newMessages;
+        });
         onStreamEnd?.(accumulatedText);
       }
     }, 100);
 
-  }, [onStreamEnd, onStreamError, processTextForAudio, toast]);
+  }, [setMessages, onStreamEnd, onStreamError, processTextForAudio, toast]);
 
   const stopStream = useCallback(() => {
     setIsLoading(false);
@@ -129,7 +142,6 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
     startStream,
     stopStream,
     isLoading,
-    streamingResponse,
     isListening,
     setIsListening,
   };
