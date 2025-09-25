@@ -26,11 +26,11 @@ export default function ChatPage() {
   } = useSpeechRecognition();
 
   useEffect(() => {
-    // Start listening by default
-    if (browserSupportsSpeechRecognition && !isListening) {
+    // Start listening by default if supported
+    if (browserSupportsSpeechRecognition) {
       startListening();
     }
-  }, [browserSupportsSpeechRecognition, isListening, startListening]);
+  }, [browserSupportsSpeechRecognition, startListening]);
 
   useEffect(() => {
     if (transcript) {
@@ -94,12 +94,14 @@ export default function ChatPage() {
       setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsLoading(false);
     } finally {
-        // Restart listening after AI response is complete or on error
-        setTimeout(() => {
-            if (browserSupportsSpeechRecognition && !isListening) {
-                startListening();
-            }
-        }, 1000); // Small delay to avoid capturing own voice
+        // Restart listening after AI response is complete or on error, if supported
+        if (browserSupportsSpeechRecognition) {
+            setTimeout(() => {
+                if (!isListening) {
+                    startListening();
+                }
+            }, 1000); 
+        }
     }
   };
 
