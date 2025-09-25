@@ -7,13 +7,11 @@ import { MeeraAvatar } from './meera-avatar';
 interface ChatMessagesProps {
   messages: ChatMessageType[];
   isLoading: boolean;
-  streamingResponse?: string;
 }
 
 export function ChatMessages({
   messages,
   isLoading,
-  streamingResponse,
 }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
@@ -31,7 +29,7 @@ export function ChatMessages({
     if (container && isAtBottom.current) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages, isLoading, streamingResponse]);
+  }, [messages, isLoading]);
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
@@ -40,6 +38,9 @@ export function ChatMessages({
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, []);
+
+  const lastMessage = messages[messages.length - 1];
+  const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
 
   return (
     <div
@@ -50,7 +51,7 @@ export function ChatMessages({
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
         ))}
-        {isLoading && (
+        {showLoading && (
           <div className="group relative flex items-start gap-4">
             <MeeraAvatar className="h-8 w-8" />
             <div className="flex items-center space-x-2 rounded-lg bg-card p-3">
@@ -61,9 +62,6 @@ export function ChatMessages({
               </div>
             </div>
           </div>
-        )}
-        {streamingResponse && !isLoading && (
-           <ChatMessage message={{ role: 'model', content: streamingResponse }} />
         )}
       </div>
     </div>

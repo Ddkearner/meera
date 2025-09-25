@@ -21,7 +21,35 @@ export default function ChatPage() {
   const finalTranscriptRef = useRef('');
   const [isListening, setIsListening] = useState(false);
 
-  const { typedResponse, startTypewriter, stopTypewriter } = useTypewriter();
+  const { typedResponse, startTypewriter, stopTypewriter } = useTypewriter(
+    (finalText) => {
+      // Update the last message with the final content when the typewriter finishes.
+      setMessages(prev => {
+        const newMessages = [...prev];
+        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
+          newMessages[newMessages.length - 1].content = finalText;
+        }
+        return newMessages;
+      });
+
+      if (recognitionRef.current && !isListening) {
+        startListening();
+      }
+    }
+  );
+
+  useEffect(() => {
+    // This effect updates the content of the last message as the typewriter types.
+    if (typedResponse) {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
+          newMessages[newMessages.length - 1].content = typedResponse;
+        }
+        return newMessages;
+      });
+    }
+  }, [typedResponse]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -110,7 +138,8 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
+    // Add user message and an empty placeholder for the AI response
+    setMessages(prev => [...prev, userMessage, { role: 'model', content: '' }]);
     setTranscript('');
     finalTranscriptRef.current = '';
     setIsLoading(true);
@@ -132,19 +161,15 @@ export default function ChatPage() {
       setIsLoading(false);
 
       if (response && response.response) {
-        startTypewriter(response.response, () => {
-          const finalMessage: ChatMessage = { role: 'model', content: response.response };
-          setMessages(prev => [...prev, finalMessage]);
-          if (recognitionRef.current && !isListening) {
-            startListening();
-          }
-        });
+        startTypewriter(response.response);
       } else {
         throw new Error("No response from AI");
       }
 
     } catch (error) {
       setIsLoading(false);
+       // Remove the empty model message placeholder on error
+      setMessages(prev => prev.slice(0, prev.length -1));
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -181,13 +206,12 @@ export default function ChatPage() {
     <div className="flex h-screen flex-col bg-background">
       <ChatHeader isListening={isListening && messages.length > 0} />
       <main className="flex-1 overflow-y-auto">
-        {messages.length === 0 && !isLoading && !typedResponse ? (
+        {messages.length === 0 && !isLoading ? (
           <WelcomeScreen />
         ) : (
           <ChatMessages
             messages={messages}
             isLoading={isLoading}
-            streamingResponse={typedResponse}
           />
         )}
       </main>
