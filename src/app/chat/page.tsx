@@ -12,22 +12,22 @@ import { VoiceOrb } from '@/components/voice-orb';
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(true); // Start listening by default
+  const [isListening, setIsListening] = useState(false); // Start as false, will be set to true by effect
   const [transcript, setTranscript] = useState('');
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      setIsListening(false);
+      // onend will set isListening to false
     }
   }, []);
 
   const handleSendMessage = async (values: { message: string }) => {
     if (!values.message.trim()) return;
 
-    // Stop listening when a message is sent
     stopListening();
 
     const userMessage: ChatMessage = { role: 'user', content: values.message };
@@ -42,7 +42,6 @@ export default function ChatPage() {
         content: [{ text: msg.content }],
       }));
 
-      // Get text response from Meera
       const response = await runChatFlow({
         history: historyForAI,
         message: values.message,
@@ -54,11 +53,19 @@ export default function ChatPage() {
       };
       setMessages(prev => [...prev, modelMessage]);
 
-      // Get audio for the response
       const audioResponse = await runTextToSpeech(response.response);
       if (audioResponse?.media) {
-        const audio = new Audio(audioResponse.media);
-        audio.play();
+        if (audioRef.current) {
+          audioRef.current.src = audioResponse.media;
+          audioRef.current.play();
+          // After speaking, start listening again
+          audioRef.current.onended = () => {
+             startListening();
+          };
+        }
+      } else {
+        // If no audio, start listening again
+        startListening();
       }
     } catch (error) {
       console.error('Error calling AI flow:', error);
@@ -68,18 +75,25 @@ export default function ChatPage() {
         description: 'Failed to get a response. Please try again.',
       });
       setMessages(prev => prev.slice(0, -1));
+       startListening(); // Start listening again on error
     } finally {
       setIsLoading(false);
     }
   };
-
+  
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
-      setTranscript('');
-      recognitionRef.current.start();
-      setIsListening(true);
+      try {
+        setTranscript('');
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+         // This can happen if recognition is already starting
+         console.log("Speech recognition already starting.");
+      }
     }
   }, [isListening]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !recognitionRef.current) {
@@ -106,33 +120,52 @@ export default function ChatPage() {
         recognition.onerror = event => {
           if (event.error === 'aborted' || event.error === 'no-speech') {
             console.log(`Speech recognition stopped: ${event.error}`);
+            // Don't show toast for these common cases
             return;
           }
           console.error('Speech recognition error:', event.error);
           toast({
             variant: 'destructive',
             title: 'Recognition Error',
-            description: 'Could not understand audio. Please try again.',
+            description: `Could not understand audio. Please try again. (${event.error})`,
           });
-          setIsListening(false);
+        };
+        
+        recognition.onstart = () => {
+            setIsListening(true);
         };
 
         recognition.onend = () => {
           setIsListening(false);
+          // If a final transcript was captured, send it.
+          if (transcript.trim()) {
+            handleSendMessage({ message: transcript.trim() });
+          }
         };
         
         recognitionRef.current = recognition;
         startListening(); // Start listening on initial mount
+      } else {
+         toast({
+            variant: 'destructive',
+            title: 'Browser Not Supported',
+            description: 'Speech recognition is not supported in your browser.',
+         });
       }
+    }
+
+    if (!audioRef.current) {
+        audioRef.current = new Audio();
     }
 
     return () => {
       stopListening();
     };
-  }, [startListening, stopListening, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const WelcomeScreen = () => (
-    <div className="flex h-full flex-col items-center justify-center text-center">
+    <div className="flex h-full flex-col items-center justify-center text-center p-4"  onClick={startListening}>
       <VoiceOrb transcript={transcript} isListening={isListening} />
       <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
     </div>
@@ -141,7 +174,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col bg-background">
       <ChatHeader />
-      <main className="flex-1 overflow-y-auto" onClick={!isListening ? startListening : undefined}>
+      <main className="flex-1 overflow-y-auto" onClick={!isLoading && !isListening ? startListening : undefined}>
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
