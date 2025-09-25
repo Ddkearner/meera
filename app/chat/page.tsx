@@ -10,6 +10,8 @@ import { runChatFlow, runTtsFlow } from '@/lib/actions';
 import { useTypewriter } from '@/hooks/use-typewriter';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 
+const CHAT_STORAGE_KEY = 'meera-chat-history';
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +29,31 @@ export default function ChatPage() {
     browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
 
+  // Load messages from localStorage on initial render
+  useEffect(() => {
+    try {
+      const savedMessages = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (savedMessages) {
+        setMessages(JSON.parse(savedMessages));
+      }
+    } catch (error) {
+      console.error('Failed to load messages from localStorage', error);
+    }
+  }, []);
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    // We don't save if there are no messages to avoid storing an empty array
+    if (messages.length > 0) {
+      try {
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('Failed to save messages to localStorage', error);
+      }
+    }
+  }, [messages]);
+
+
   useEffect(() => {
     if (browserSupportsSpeechRecognition && !isListening) {
       startListening();
@@ -42,14 +69,18 @@ export default function ChatPage() {
 
   useEffect(() => {
     setMessages(prev => {
-      if (prev.length === 0 || prev[prev.length -1].role !== 'model') return prev;
+      // Do nothing if there are no messages or the last one isn't from the model
+      if (prev.length === 0 || prev[prev.length - 1].role !== 'model') {
+        return prev;
+      }
       
       const newMessages = [...prev];
       const lastMessage = newMessages[newMessages.length - 1];
-
+  
       // Only update if the last message is from the model and the typewriter is active.
       if (lastMessage && (isTyping || typewriterText)) {
-          lastMessage.content = typewriterText;
+        // Prevent adding 'undefined' to the content
+        lastMessage.content = typewriterText || '';
         return newMessages;
       }
       return prev;
@@ -128,7 +159,7 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      setMessages(prev => prev.filter(msg => msg !== userMessage));
+      setMessages(prev => prev.filter(msg => msg.content !== userMessage.content)); // More robust removal
       setIsLoading(false);
     } finally {
       if (browserSupportsSpeechRecognition) {
