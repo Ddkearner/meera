@@ -61,7 +61,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen flex-col bg-background">
       <ChatHeader />
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 overflow-y-auto">
         {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
