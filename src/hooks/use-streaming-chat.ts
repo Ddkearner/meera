@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { runChatFlow, runTextToSpeech } from '@/lib/actions';
-import type { ChatMessage, StreamingChatInput } from '@/lib/types';
+import type { StreamingChatInput } from '@/lib/types';
 import { useToast } from './use-toast';
 import { readStreamableValue } from 'ai/rsc';
 
@@ -11,7 +11,10 @@ interface UseStreamingChatProps {
   onStreamError?: (error: Error) => void;
 }
 
-export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingChatProps) {
+export function useStreamingChat({
+  onStreamEnd,
+  onStreamError,
+}: UseStreamingChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [streamingResponse, setStreamingResponse] = useState('');
@@ -37,11 +40,11 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
         const audioResponse = await runTextToSpeech(textToPlay);
         if (audioResponse?.media) {
           audioRef.current.src = audioResponse.media;
-          
+
           const playPromise = audioRef.current.play();
           if (playPromise !== undefined) {
             playPromise.catch(error => {
-              console.error("Audio play failed", error);
+              console.error('Audio play failed', error);
               isPlayingAudio.current = false;
               playNextAudio(); // Try next in queue
             });
@@ -56,7 +59,7 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
           playNextAudio();
         }
       } catch (error) {
-        console.error("TTS request failed", error);
+        console.error('TTS request failed', error);
         isPlayingAudio.current = false;
         playNextAudio();
       }
@@ -65,57 +68,56 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
     }
   }, []);
 
-  const processTextForAudio = useCallback((text: string) => {
-    const sentences = text.split(/(?<=[.?!])\s+/).filter(s => s.trim().length > 0);
-    sentences.forEach(sentence => audioQueue.current.push(sentence));
-    if (!isPlayingAudio.current) {
-      playNextAudio();
-    }
-  }, [playNextAudio]);
+  const processTextForAudio = useCallback(
+    (text: string) => {
+      const sentences = text
+        .split(/(?<=[.?!])\s+/)
+        .filter(s => s.trim().length > 0);
+      sentences.forEach(sentence => audioQueue.current.push(sentence));
+      if (!isPlayingAudio.current) {
+        playNextAudio();
+      }
+    },
+    [playNextAudio]
+  );
 
-  const startStream = useCallback(async (input: StreamingChatInput) => {
-    setIsLoading(true);
-    setStreamingResponse('');
-    audioQueue.current = [];
-    isPlayingAudio.current = false;
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    
-    let accumulatedText = '';
-    try {
-      const { stream } = await runChatFlow(input);
-      
-      for await (const chunk of readStreamableValue(stream)) {
-        if (chunk) {
-          accumulatedText += chunk;
-          setStreamingResponse(prev => prev + chunk);
-          processTextForAudio(chunk);
-        }
+  const startStream = useCallback(
+    async (input: StreamingChatInput) => {
+      setIsLoading(true);
+      setStreamingResponse('');
+      audioQueue.current = [];
+      isPlayingAudio.current = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
 
-    } catch (error) {
-      console.error('Error during chat stream:', error);
-      setIsLoading(false);
-      onStreamError?.(error as Error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to get a response. Please try again.',
-      });
-      return;
-    }
+      let accumulatedText = '';
+      try {
+        const { stream } = await runChatFlow(input);
 
-    const checkAudio = setInterval(() => {
-      if (!isPlayingAudio.current && audioQueue.current.length === 0) {
-        clearInterval(checkAudio);
+        for await (const chunk of readStreamableValue(stream)) {
+          if (chunk) {
+            accumulatedText += chunk;
+            setStreamingResponse(prev => prev + chunk);
+            processTextForAudio(chunk);
+          }
+        }
+      } catch (error) {
+        console.error('Error during chat stream:', error);
+        onStreamError?.(error as Error);
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Failed to get a response. Please try again.',
+        });
+      } finally {
         setIsLoading(false);
         onStreamEnd?.(accumulatedText);
       }
-    }, 100);
+    },
+    [onStreamEnd, onStreamError, processTextForAudio, toast]
+  );
 
-  }, [onStreamEnd, onStreamError, processTextForAudio, toast]);
-  
   const clearStreamingResponse = useCallback(() => {
     setStreamingResponse('');
   }, []);
@@ -136,6 +138,6 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
     isListening,
     setIsListening,
     streamingResponse,
-    clearStreamingResponse
+    clearStreamingResponse,
   };
 }
