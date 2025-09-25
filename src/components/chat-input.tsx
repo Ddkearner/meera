@@ -39,10 +39,13 @@ export function ChatInput({
   });
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isManuallyTyping = useRef(false);
 
   useEffect(() => {
-    // Directly set the form value from the transcript prop
-    form.setValue('message', value || '');
+    // Only update form value if user is not manually typing
+    if (!isManuallyTyping.current) {
+      form.setValue('message', value || '');
+    }
 
     // Auto-resize textarea
     if (textareaRef.current) {
@@ -59,14 +62,24 @@ export function ChatInput({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
+    isManuallyTyping.current = false;
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    isManuallyTyping.current = true;
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       form.handleSubmit(handleFormSubmit)();
     }
   };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    isManuallyTyping.current = true;
+    form.setValue('message', e.target.value);
+    if (onValueChange) {
+      onValueChange(e.target.value);
+    }
+  }
 
   return (
     <div className="w-full shrink-0 border-t bg-background px-4 py-3 md:px-6">
@@ -77,19 +90,9 @@ export function ChatInput({
             onSubmit={form.handleSubmit(handleFormSubmit)}
             className="relative flex items-start gap-2"
           >
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              className="absolute bottom-1.5 left-1.5 h-8 w-8 rounded-lg"
-              onClick={onMicrophoneClick}
-            >
-              {isListening ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
-              <span className="sr-only">{isListening ? "Stop listening" : "Start listening"}</span>
-            </Button>
             <div className={cn(
               "flex-1 relative",
-              isListening && value && "listening-input-wrapper"
+              isListening && value && !isManuallyTyping.current && "listening-input-wrapper"
             )}>
               <FormField
                 control={form.control}
@@ -100,29 +103,40 @@ export function ChatInput({
                       <Textarea
                         ref={textareaRef}
                         placeholder="Ask anything or start speaking..."
-                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pl-12 pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
+                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-20 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
                         rows={1}
                         onKeyDown={handleKeyDown}
                         {...field}
-                        onChange={(e) => {
-                          field.onChange(e);
-                          if (onValueChange) onValueChange(e.target.value);
-                        }}
+                        onChange={handleInputChange}
                       />
                     </FormControl>
                   </FormItem>
                 )}
               />
             </div>
-            <Button
-              type="submit"
-              size="icon"
-              className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90 z-10"
-              disabled={isLoading || !form.watch('message')}
-            >
-              <ArrowUp className="h-4 w-4" />
-              <span className="sr-only">Send message</span>
-            </Button>
+            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10">
+              {isListening && (
+                 <Button
+                  type="button"
+                  size="icon"
+                  variant="destructive"
+                  className="h-8 w-8 rounded-lg bg-red-500 hover:bg-red-600"
+                  onClick={onMicrophoneClick}
+                >
+                  <MicOff className="h-4 w-4" />
+                  <span className="sr-only">Stop listening</span>
+                </Button>
+              )}
+              <Button
+                type="submit"
+                size="icon"
+                className="h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90"
+                disabled={isLoading || !form.watch('message')}
+              >
+                <ArrowUp className="h-4 w-4" />
+                <span className="sr-only">Send message</span>
+              </Button>
+            </div>
           </form>
         </Form>
         <p className="text-center text-xs text-muted-foreground mt-2">

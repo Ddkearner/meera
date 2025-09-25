@@ -24,18 +24,20 @@ export default function ChatPage() {
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
+      setIsListening(false);
     }
   }, []);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && !isListening) {
       try {
         recognitionRef.current.start();
+        setIsListening(true);
       } catch (error) {
-         console.log("Speech recognition could not start, likely already active or an error occurred.");
+        console.log("Speech recognition could not start, likely already active or an error occurred.");
       }
     }
-  }, []);
+  }, [isListening]);
 
 
   const handleSendMessage = async (values: { message: string }) => {
@@ -123,10 +125,8 @@ export default function ChatPage() {
         console.error('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
-          setIsListening(false);
-        } else {
-           setIsListening(false);
         }
+        setIsListening(false);
       };
       
       recognition.onstart = () => {
