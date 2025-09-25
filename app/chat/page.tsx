@@ -119,6 +119,7 @@ export default function ChatPage() {
       }
     };
     playAudioWhenReady();
+    // This effect should run whenever the typewriter starts or there's an audio promise
   }, [isTyping, typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
