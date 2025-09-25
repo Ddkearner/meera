@@ -1,42 +1,40 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
 import { runChatFlow, runTextToSpeech } from '@/lib/actions';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { MeeraAvatar } from '@/components/meera-avatar';
 import { VoiceOrb } from '@/components/voice-orb';
-import { Mic } from 'lucide-react';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(true); // Start listening by default
   const [transcript, setTranscript] = useState('');
   const { toast } = useToast();
-
-  const recognition =
-    typeof window !== 'undefined'
-      ? new (window.SpeechRecognition || window.webkitSpeechRecognition)()
-      : null;
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   const stopListening = useCallback(() => {
-    if (recognition) {
-      recognition.stop();
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
       setIsListening(false);
     }
-  }, [recognition]);
+  }, []);
 
   const handleSendMessage = async (values: { message: string }) => {
     if (!values.message.trim()) return;
+
+    // Stop listening when a message is sent
+    stopListening();
 
     const userMessage: ChatMessage = { role: 'user', content: values.message };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsLoading(true);
+    setTranscript('');
 
     try {
       const historyForAI = newMessages.slice(0, -1).map(msg => ({
@@ -75,85 +73,84 @@ export default function ChatPage() {
     }
   };
 
-  const startListening = () => {
-    if (recognition && !isListening) {
+  const startListening = useCallback(() => {
+    if (recognitionRef.current && !isListening) {
       setTranscript('');
-      recognition.lang = 'en-US';
-      recognition.interimResults = true;
-      recognition.continuous = true;
-
-      recognition.onresult = event => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        setTranscript(finalTranscript + interimTranscript);
-      };
-
-      recognition.onerror = event => {
-        if (event.error === 'aborted') {
-          console.log('Speech recognition aborted by user.');
-          return;
-        }
-        console.error('Speech recognition error:', event.error);
-        toast({
-          variant: 'destructive',
-          title: 'Recognition Error',
-          description: 'Could not understand audio. Please try again.',
-        });
-        stopListening();
-      };
-      
-      recognition.onend = () => {
-        setIsListening(false);
-        if (transcript.trim()) {
-           handleSendMessage({ message: transcript });
-           setTranscript('');
-        }
-      };
-
-      recognition.start();
+      recognitionRef.current.start();
       setIsListening(true);
     }
-  };
+  }, [isListening]);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && !recognitionRef.current) {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+
+        recognition.onresult = event => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+          setTranscript(finalTranscript + interimTranscript);
+        };
+
+        recognition.onerror = event => {
+          if (event.error === 'aborted' || event.error === 'no-speech') {
+            console.log(`Speech recognition stopped: ${event.error}`);
+            return;
+          }
+          console.error('Speech recognition error:', event.error);
+          toast({
+            variant: 'destructive',
+            title: 'Recognition Error',
+            description: 'Could not understand audio. Please try again.',
+          });
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+        
+        recognitionRef.current = recognition;
+        startListening(); // Start listening on initial mount
+      }
+    }
+
     return () => {
       stopListening();
     };
-  }, [stopListening]);
+  }, [startListening, stopListening, toast]);
   
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center">
-      <div className="mb-4">
-        <MeeraAvatar className="h-12 w-12" />
-      </div>
-      <h2 className="text-2xl font-semibold text-gray-700">How can I help you today?</h2>
+      <VoiceOrb transcript={transcript} isListening={isListening} />
+      <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
     </div>
   );
 
   return (
     <div className="flex h-screen flex-col bg-background">
       <ChatHeader />
-      <main className="flex-1 overflow-y-auto">
-        {messages.length === 0 && !isLoading && !isListening ? (
+      <main className="flex-1 overflow-y-auto" onClick={!isListening ? startListening : undefined}>
+         {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
           <ChatMessages messages={messages} isLoading={isLoading} />
         )}
-        {isListening && <VoiceOrb transcript={transcript} />}
       </main>
       <ChatInput
         onSubmit={handleSendMessage}
         isLoading={isLoading}
-        isListening={isListening}
-        onListenClick={isListening ? stopListening : startListening}
-        micIcon={<Mic />}
         value={transcript}
         onValueChange={setTranscript}
       />

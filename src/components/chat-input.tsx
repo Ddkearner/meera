@@ -6,9 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, Mic } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useEffect } from 'react';
+import { ArrowUp } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 const formSchema = z.object({
   message: z.string().min(1),
@@ -17,9 +16,6 @@ const formSchema = z.object({
 interface ChatInputProps {
   onSubmit: (values: z.infer<typeof formSchema>) => void;
   isLoading: boolean;
-  isListening?: boolean;
-  onListenClick?: () => void;
-  micIcon?: React.ReactNode;
   value?: string;
   onValueChange?: (value: string) => void;
 }
@@ -27,9 +23,6 @@ interface ChatInputProps {
 export function ChatInput({
   onSubmit,
   isLoading,
-  isListening,
-  onListenClick,
-  micIcon,
   value,
   onValueChange,
 }: ChatInputProps) {
@@ -39,16 +32,26 @@ export function ChatInput({
       message: '',
     },
   });
+  
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     form.setValue('message', value || '');
+    // Auto-resize textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
   }, [value, form]);
 
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
-    if (isLoading || isListening) return;
+    if (isLoading) return;
     onSubmit(values);
     form.reset();
     if (onValueChange) onValueChange('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -67,19 +70,6 @@ export function ChatInput({
             onSubmit={form.handleSubmit(handleFormSubmit)}
             className="relative flex items-start gap-2"
           >
-            {micIcon && onListenClick && (
-               <Button
-                type="button"
-                size="icon"
-                onClick={onListenClick}
-                className={cn(
-                  'h-10 w-10 shrink-0 rounded-full bg-foreground hover:bg-foreground/90',
-                  isListening && 'bg-red-500 hover:bg-red-600'
-                )}
-              >
-                <Mic className="h-5 w-5" />
-              </Button>
-            )}
             <FormField
               control={form.control}
               name="message"
@@ -87,6 +77,7 @@ export function ChatInput({
                 <FormItem className="flex-1">
                   <FormControl>
                     <Textarea
+                      ref={textareaRef}
                       placeholder="Ask anything or start speaking..."
                       className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
                       rows={1}
@@ -105,7 +96,7 @@ export function ChatInput({
               type="submit"
               size="icon"
               className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90"
-              disabled={isLoading || isListening || !form.watch('message')}
+              disabled={isLoading || !form.watch('message')}
             >
               <ArrowUp className="h-4 w-4" />
               <span className="sr-only">Send message</span>
