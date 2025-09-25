@@ -40,9 +40,8 @@ export const useSpeechRecognition = () => {
     };
 
     recognition.onerror = (event) => {
-      // The 'no-speech' error is a normal event when the user is silent.
-      // We can safely ignore it to prevent cluttering the console.
-      if (event.error === 'no-speech') {
+      // The 'no-speech' and 'network' errors are normal events that can be ignored.
+      if (event.error === 'no-speech' || event.error === 'network') {
         return;
       }
       
