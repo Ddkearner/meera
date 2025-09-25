@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 // This function now checks if `window` exists before accessing it.
 const isSpeechRecognitionSupported = (): boolean =>
@@ -56,16 +56,11 @@ export const useSpeechRecognition = () => {
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          finalTranscript += event.results[i][0].transcript;
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
+      
+      for (let i = 0; i < event.results.length; ++i) {
+        finalTranscript += event.results[i][0].transcript;
       }
-      setTranscript(finalTranscript + interimTranscript);
+      setTranscript(finalTranscript);
     };
 
     // Cleanup function
@@ -76,22 +71,28 @@ export const useSpeechRecognition = () => {
     };
   }, []);
 
-  const startListening = () => {
+  const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       try {
         setTranscript('');
         recognitionRef.current.start();
       } catch (error) {
+        // This error can happen in some browsers if start() is called too frequently.
+        // The `!isListening` guard should prevent most cases, but we log it just in case.
         console.error("Couldn't start listening:", error);
       }
     }
-  };
+  }, [isListening]);
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.error("Couldn't stop listening:", error)
+      }
     }
-  };
+  }, [isListening]);
 
   return {
     isListening,

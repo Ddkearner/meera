@@ -25,12 +25,14 @@ export default function ChatPage() {
     browserSupportsSpeechRecognition
   } = useSpeechRecognition();
 
+  // This effect now correctly depends only on browser support and the start function reference.
+  // It will run once on mount if speech recognition is supported.
   useEffect(() => {
-    // Start listening by default if supported
-    if (browserSupportsSpeechRecognition) {
+    if (browserSupportsSpeechRecognition && !isListening) {
       startListening();
     }
-  }, [browserSupportsSpeechRecognition, startListening]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browserSupportsSpeechRecognition]);
 
   useEffect(() => {
     if (transcript) {
@@ -96,11 +98,14 @@ export default function ChatPage() {
     } finally {
         // Restart listening after AI response is complete or on error, if supported
         if (browserSupportsSpeechRecognition) {
-            setTimeout(() => {
+            // A short delay helps prevent race conditions with the speech recognition service
+            const restartTimeout = setTimeout(() => {
                 if (!isListening) {
                     startListening();
                 }
-            }, 1000); 
+            }, 500); 
+            // Cleanup timeout on component unmount
+            return () => clearTimeout(restartTimeout);
         }
     }
   };
