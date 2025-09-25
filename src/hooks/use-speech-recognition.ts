@@ -2,17 +2,23 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-// Type guard to check if the browser supports SpeechRecognition
+// This function now checks if `window` exists before accessing it.
 const isSpeechRecognitionSupported = (): boolean =>
-  'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
+  typeof window !== 'undefined' &&
+  ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
 export const useSpeechRecognition = () => {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [browserSupportsSpeechRecognition, setBrowserSupportsSpeechRecognition] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
-    if (!isSpeechRecognitionSupported()) {
+    // Check for support on mount (client-side only)
+    const supported = isSpeechRecognitionSupported();
+    setBrowserSupportsSpeechRecognition(supported);
+
+    if (!supported) {
       console.warn('Speech recognition not supported by this browser.');
       return;
     }
@@ -35,6 +41,10 @@ export const useSpeechRecognition = () => {
 
     recognition.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
+      if (event.error === 'not-allowed') {
+        // You could show a toast or message to the user here
+        // to guide them to enable microphone permissions.
+      }
       setIsListening(false);
     };
 
@@ -66,7 +76,6 @@ export const useSpeechRecognition = () => {
         setTranscript('');
         recognitionRef.current.start();
       } catch (error) {
-        // This can happen if start() is called when it's already started.
         console.error("Couldn't start listening:", error);
       }
     }
@@ -83,6 +92,6 @@ export const useSpeechRecognition = () => {
     transcript,
     startListening,
     stopListening,
-    browserSupportsSpeechRecognition: isSpeechRecognitionSupported(),
+    browserSupportsSpeechRecognition,
   };
 };
