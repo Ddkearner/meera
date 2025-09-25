@@ -6,8 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, Mic } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   message: z.string().min(1),
@@ -16,11 +17,17 @@ const formSchema = z.object({
 interface ChatInputProps {
   onSubmit: (values: z.infer<typeof formSchema>) => void;
   isLoading: boolean;
+  isListening: boolean;
+  inputValue: string;
+  setInputValue: (value: string) => void;
 }
 
 export function ChatInput({
   onSubmit,
   isLoading,
+  isListening,
+  inputValue,
+  setInputValue,
 }: ChatInputProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -32,11 +39,12 @@ export function ChatInput({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    form.setValue('message', inputValue);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-  }, [form.watch('message')]);
+  }, [inputValue, form]);
 
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
     if (isLoading) return;
@@ -53,6 +61,12 @@ export function ChatInput({
       form.handleSubmit(handleFormSubmit)();
     }
   };
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    form.setValue('message', value);
+  };
 
   return (
     <div className="w-full shrink-0 border-t bg-background px-4 py-3 md:px-6">
@@ -63,39 +77,32 @@ export function ChatInput({
             onSubmit={form.handleSubmit(handleFormSubmit)}
             className="relative flex items-end gap-2"
           >
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormControl>
-                    <Textarea
-                      ref={textareaRef}
-                      placeholder="Ask anything..."
-                      className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-24 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
-                      rows={1}
-                      onKeyDown={handleKeyDown}
-                      {...field}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
-            <div className="absolute bottom-1.5 right-1.5 flex items-center z-10 gap-1.5">
-               <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 rounded-lg"
-                disabled
-              >
-                <Mic className="h-4 w-4" />
-                <span className="sr-only">Use microphone</span>
-              </Button>
+            <div className={cn("relative flex-1", isListening && "input-gradient-border rounded-2xl p-0.5")}>
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder="Listening..."
+                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-14 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
+                        rows={1}
+                        onKeyDown={handleKeyDown}
+                        {...field}
+                        onChange={handleInputChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+            <div className="absolute bottom-1.5 right-1.5 flex items-center z-10">
               <Button
                 type="submit"
                 size="icon"
-                className="h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90"
+                className="h-9 w-9 rounded-full bg-foreground hover:bg-foreground/90"
                 disabled={isLoading || !form.watch('message')}
               >
                 <ArrowUp className="h-4 w-4" />
