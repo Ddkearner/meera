@@ -22,25 +22,24 @@ export default function ChatPage() {
   const isMounted = useRef(false);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && !isListening) {
       try {
         recognitionRef.current.start();
         setIsListening(true);
       } catch (error) {
-        // Ignore errors if recognition is already running
         if ((error as DOMException).name !== 'InvalidStateError') {
           console.error("Speech recognition could not start:", error);
         }
       }
     }
-  }, []);
+  }, [isListening]);
   
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && isListening) {
       recognitionRef.current.stop();
       setIsListening(false);
     }
-  }, []);
+  }, [isListening]);
   
   useEffect(() => {
     if (isMounted.current) return;
@@ -68,7 +67,7 @@ export default function ChatPage() {
       };
 
       recognition.onerror = event => {
-        if (event.error === 'aborted' || event.error === 'no-speech') {
+        if (event.error === 'aborted' || event.error === 'no-speech' || event.error === 'network') {
           return;
         }
         if (event.error === 'not-allowed') {
@@ -91,11 +90,6 @@ export default function ChatPage() {
       recognitionRef.current = recognition;
       startListening();
     } else {
-       toast({
-          variant: 'destructive',
-          title: 'Browser Not Supported',
-          description: 'Speech recognition is not supported in your browser.',
-       });
        setMicError("Speech recognition is not supported in your browser.");
     }
 
@@ -108,8 +102,7 @@ export default function ChatPage() {
         audioRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [startListening]);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
