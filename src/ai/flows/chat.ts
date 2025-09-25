@@ -93,8 +93,6 @@ FINAL NOTE (developer instruction)
 - Respect user autonomy and safety at all times.
 `;
 
-// Note: The name 'streamChatWithMeera' is kept for historical reasons,
-// but this flow now returns the full response at once.
 const chatWithMeeraFlow = ai.defineFlow(
   {
     name: 'chatWithMeeraFlow',
@@ -107,20 +105,24 @@ const chatWithMeeraFlow = ai.defineFlow(
       content: h.content,
     }));
 
-    const response = await ai.generate({
-      model: 'googleai/gemini-2.5-flash',
-      system: systemPrompt,
-      prompt: message,
-      history: historyForAI,
-    });
+    try {
+      const response = await ai.generate({
+        model: 'googleai/gemini-2.5-flash',
+        system: systemPrompt,
+        prompt: message,
+        history: historyForAI,
+      });
 
-    const responseText = response.text;
-    
-    if (!responseText) {
-      return { response: "I'm not sure how to respond to that. Could you try rephrasing?" };
+      const responseText = response.text;
+      
+      if (responseText) {
+        return { response: responseText };
+      }
+    } catch (e) {
+      console.error('AI generation failed:', e);
     }
 
-    return { response: responseText };
+    return { response: "I'm sorry, I encountered an issue and can't respond right now. Please try again in a moment." };
   }
 );
 
