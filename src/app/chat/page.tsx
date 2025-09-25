@@ -176,9 +176,15 @@ export default function ChatPage() {
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4"  onClick={startListening}>
       <VoiceOrb transcript={transcript} isListening={isListening} />
-       {!transcript && !isListening && (
+       {!isListening && !transcript && (
          <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
        )}
+       {isListening && !transcript && (
+         <p className="mt-8 text-2xl font-semibold text-foreground h-8">Listening...</p>
+       )}
+        <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
+          {transcript}
+        </p>
     </div>
   );
 

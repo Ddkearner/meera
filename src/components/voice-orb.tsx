@@ -24,14 +24,6 @@ export function VoiceOrb({ transcript, isListening }: VoiceOrbProps) {
            isListening ? "" : "opacity-80"
         )}></div>
       </div>
-       <p className="mt-8 text-2xl font-semibold text-foreground h-8">
-        {isListening && transcript ? '...' : (isListening ? 'Listening...' : 'Click anywhere to speak')}
-      </p>
-      {isListening && (
-        <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
-          {transcript}
-        </p>
-      )}
     </div>
   );
 }

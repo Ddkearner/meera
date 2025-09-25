@@ -73,7 +73,7 @@ export function ChatInput({
             onSubmit={form.handleSubmit(handleFormSubmit)}
             className={cn(
               "relative flex items-start gap-2",
-              isListening && "listening-input-wrapper"
+              isListening && value && "listening-input-wrapper"
             )}
           >
             <FormField
