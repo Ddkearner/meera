@@ -20,6 +20,7 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const audioPromiseRef = useRef<Promise<any> | null>(null);
+  const isPlayingRef = useRef(false);
 
   const {
     isListening,
@@ -92,18 +93,26 @@ export default function ChatPage() {
   
   useEffect(() => {
     const playAudioWhenReady = async () => {
-      if (!isTyping && typewriterText && audioPromiseRef.current) {
+      // Play audio as soon as it's ready, even if typing is not finished.
+      if (audioPromiseRef.current && !isPlayingRef.current) {
+        isPlayingRef.current = true;
         try {
           const result = await audioPromiseRef.current;
           if ('audio' in result && result.audio) {
             const newAudio = new Audio(result.audio);
+            newAudio.onended = () => {
+              isPlayingRef.current = false;
+              setAudio(null);
+            };
             setAudio(newAudio);
             newAudio.play();
           } else {
             console.error(result.error || 'Failed to get audio.');
+            isPlayingRef.current = false;
           }
         } catch (error) {
           console.error('Error playing TTS audio:', error);
+          isPlayingRef.current = false;
         } finally {
           audioPromiseRef.current = null;
         }
@@ -119,6 +128,7 @@ export default function ChatPage() {
     if (audio) {
       audio.pause();
       setAudio(null);
+      isPlayingRef.current = false;
     }
 
     if (isListening) {
@@ -146,8 +156,6 @@ export default function ChatPage() {
       setIsLoading(false);
 
       if (response.response) {
-        // This will be handled by the typewriter effect now.
-        
         // Start TTS generation immediately in the background
         audioPromiseRef.current = runTtsFlow(response.response);
 
