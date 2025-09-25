@@ -40,19 +40,23 @@ export default function ChatPage() {
   }, [transcript]);
 
   useEffect(() => {
-    if (isTyping || typewriterText) {
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage && lastMessage.role === 'model') {
-          lastMessage.content = typewriterText;
-          return newMessages;
-        }
-        return prev;
-      });
-    }
-  }, [typewriterText, isTyping]);
+    setMessages(prev => {
+      if (prev.length === 0) return [];
+      const newMessages = [...prev];
+      const lastMessage = newMessages[newMessages.length - 1];
 
+      // Only update if the last message is from the model and the typewriter is active.
+      if (lastMessage && lastMessage.role === 'model' && (isTyping || typewriterText)) {
+        // Prevent setting content to undefined or empty string if typewriter is just starting
+        if (typewriterText) {
+          lastMessage.content = typewriterText;
+        }
+        return newMessages;
+      }
+      return prev;
+    });
+  }, [typewriterText, isTyping]);
+  
   useEffect(() => {
     const playAudioWhenReady = async () => {
       if (!isTyping && typewriterText && audioPromiseRef.current) {
