@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +20,7 @@ interface ChatInputProps {
   value?: string;
   onValueChange?: (value: string) => void;
   isListening?: boolean;
+  onMicrophoneClick: () => void;
 }
 
 export function ChatInput({
@@ -28,6 +29,7 @@ export function ChatInput({
   value,
   onValueChange,
   isListening,
+  onMicrophoneClick,
 }: ChatInputProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -37,9 +39,13 @@ export function ChatInput({
   });
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hasTyped = useRef(false);
 
   useEffect(() => {
-    form.setValue('message', value || '');
+    // Only update form value if the user hasn't started typing manually
+    if (!hasTyped.current) {
+      form.setValue('message', value || '');
+    }
     // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -49,6 +55,7 @@ export function ChatInput({
 
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
     if (isLoading) return;
+    hasTyped.current = false;
     onSubmit(values);
     form.reset();
     if (onValueChange) onValueChange('');
@@ -61,6 +68,8 @@ export function ChatInput({
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       form.handleSubmit(handleFormSubmit)();
+    } else {
+      hasTyped.current = true;
     }
   };
 
@@ -71,33 +80,46 @@ export function ChatInput({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleFormSubmit)}
-            className={cn(
-              "relative flex items-start gap-2",
-              isListening && value && "listening-input-wrapper"
-            )}
+            className="relative flex items-start gap-2"
           >
-            <FormField
-              control={form.control}
-              name="message"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormControl>
-                    <Textarea
-                      ref={textareaRef}
-                      placeholder="Ask anything or start speaking..."
-                      className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
-                      rows={1}
-                      onKeyDown={handleKeyDown}
-                      {...field}
-                      onChange={(e) => {
-                        field.onChange(e);
-                        if (onValueChange) onValueChange(e.target.value);
-                      }}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
-            />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="absolute bottom-1.5 left-1.5 h-8 w-8 rounded-lg"
+              onClick={onMicrophoneClick}
+            >
+              {isListening ? <MicOff className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
+              <span className="sr-only">{isListening ? "Stop listening" : "Start listening"}</span>
+            </Button>
+            <div className={cn(
+              "flex-1 relative",
+              isListening && value && "listening-input-wrapper"
+            )}>
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
+                      <Textarea
+                        ref={textareaRef}
+                        placeholder="Ask anything or start speaking..."
+                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pl-12 pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring"
+                        rows={1}
+                        onKeyDown={handleKeyDown}
+                        {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          if (onValueChange) onValueChange(e.target.value);
+                          hasTyped.current = e.target.value !== '';
+                        }}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
             <Button
               type="submit"
               size="icon"
