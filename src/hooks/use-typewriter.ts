@@ -20,7 +20,7 @@ export function useTypewriter(initialText: string = '', speed: number = 20) {
 
     intervalRef.current = setInterval(() => {
       if (indexRef.current < fullTextRef.current.length) {
-        setTypewriterText(prev => prev + fullTextRef.current[indexRef.current]);
+        setTypewriterText(prev => fullTextRef.current.substring(0, prev.length + 1));
         indexRef.current++;
       } else {
         if (intervalRef.current) {
