@@ -137,28 +137,3 @@ body {
   filter: blur(10px); /* This creates the soft blended shadow */
   z-index: 0;
 }
-
-.listening-input-wrapper {
-  position: relative;
-  padding: 2px;
-  border-radius: 1rem;
-  overflow: hidden;
-}
-
-.listening-input-wrapper::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
-  background-size: 400% 400%;
-  animation: gradient 10s ease infinite;
-  z-index: 0;
-}
-
-.listening-input-wrapper > * {
-  position: relative;
-  z-index: 1;
-}
