@@ -23,7 +23,7 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Ensure history is correctly formatted for the AI flow
+      // The history needs to be formatted correctly for the AI flow.
       const historyForAI = newMessages.slice(0, -1).map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
@@ -35,7 +35,7 @@ export default function ChatPage() {
       });
 
       if (!response || !response.response) {
-        throw new Error('No response from AI');
+        throw new Error('No valid response from AI');
       }
 
       const modelMessage: ChatMessage = {
@@ -50,8 +50,7 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      // Rollback the user message if the API call fails
-      setMessages(prev => prev.slice(0, prev.length - 1));
+      // Don't roll back the user message, so they know it was sent.
     } finally {
       setIsLoading(false);
     }
