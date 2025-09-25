@@ -59,11 +59,16 @@ export default function ChatPage() {
       recognition.continuous = true;
 
       recognition.onresult = event => {
+        let interimTranscript = '';
         let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          finalTranscript += event.results[i][0].transcript;
+        for (let i = 0; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
         }
-        setTranscript(finalTranscript);
+        setTranscript(finalTranscript + interimTranscript);
       };
 
       recognition.onerror = event => {
@@ -85,6 +90,8 @@ export default function ChatPage() {
 
       recognition.onend = () => {
         setIsListening(false);
+        // Do not automatically restart here to prevent loops.
+        // The user can restart by clicking the orb.
       };
       
       recognitionRef.current = recognition;
@@ -102,13 +109,17 @@ export default function ChatPage() {
         audioRef.current = null;
       }
     };
-  }, [startListening]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
     if (!messageText) return;
 
-    stopListening();
+    // Manually stop listening before sending message
+    if (isListening) {
+      stopListening();
+    }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
@@ -136,9 +147,7 @@ export default function ChatPage() {
       if (audioResponse?.media && audioRef.current) {
           audioRef.current.src = audioResponse.media;
           audioRef.current.play();
-          audioRef.current.onended = startListening;
-      } else {
-        startListening();
+          // Dont automatically start listening after TTS
       }
     } catch (error) {
       console.error('Error calling AI flow:', error);
@@ -147,7 +156,6 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      startListening();
     } finally {
       setIsLoading(false);
     }
@@ -174,9 +182,11 @@ export default function ChatPage() {
     </div>
   );
 
+  const isTranscribing = isListening && messages.length > 0;
+
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={isListening && messages.length > 0} />
+      <ChatHeader isListening={isTranscribing} />
       <main className="flex-1 overflow-y-auto">
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
