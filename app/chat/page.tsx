@@ -93,23 +93,6 @@ export default function ChatPage() {
         ) : (
           <ChatMessages messages={messages} isLoading={isLoading} />
         )}
-
-        <div className="absolute top-6 right-6">
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg shadow-lg">
-            <Check className="mr-2 h-4 w-4" />
-            To-Do Widget
-          </Button>
-        </div>
-        
-        <div className="absolute bottom-6 right-6 flex flex-col gap-3">
-           <Button size="icon" className="rounded-full h-12 w-12 bg-card text-foreground shadow-md hover:bg-card/90">
-             <AppWindow className="h-6 w-6" />
-           </Button>
-           <Button size="icon" className="rounded-full h-12 w-12 bg-card text-foreground shadow-md hover:bg-card/90">
-             <MessageCircle className="h-6 w-6" />
-           </Button>
-        </div>
-
       </main>
       <ChatInput
         onSubmit={handleSendMessage}
