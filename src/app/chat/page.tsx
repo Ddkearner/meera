@@ -14,42 +14,45 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [micError, setMicError] = useState<string | null>(null);
+
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMounted = useRef(false);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
+    if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
     }
-  }, [isListening]);
+  }, []);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       try {
-        setTranscript('');
         recognitionRef.current.start();
         setIsListening(true);
+        setMicError(null);
       } catch (error) {
          console.log("Speech recognition could not start, likely already active or an error occurred.");
       }
     }
   }, [isListening]);
 
-  const handleSendMessage = async (values: { message: string }) => {
-    if (!values.message.trim()) {
-        return;
-    };
 
+  const handleSendMessage = async (values: { message: string }) => {
+    const messageText = values.message.trim();
+    if (!messageText) return;
+
+    // Stop listening to prevent it from capturing its own response
     stopListening();
 
-    const userMessage: ChatMessage = { role: 'user', content: values.message };
+    const userMessage: ChatMessage = { role: 'user', content: messageText };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setIsLoading(true);
-    setTranscript('');
+    setTranscript(''); // Clear the input field
 
     try {
       const historyForAI = newMessages.slice(0, -1).map(msg => ({
@@ -59,7 +62,7 @@ export default function ChatPage() {
 
       const response = await runChatFlow({
         history: historyForAI,
-        message: values.message,
+        message: messageText,
       });
 
       const modelMessage: ChatMessage = {
@@ -73,10 +76,10 @@ export default function ChatPage() {
           audioRef.current.src = audioResponse.media;
           audioRef.current.play();
           audioRef.current.onended = () => {
-             startListening();
+             startListening(); // Resume listening after TTS is done
           };
       } else {
-        startListening();
+        startListening(); // Or resume immediately if no TTS
       }
     } catch (error) {
       console.error('Error calling AI flow:', error);
@@ -85,7 +88,7 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      startListening();
+      startListening(); // Resume listening even if there's an error
     } finally {
       setIsLoading(false);
     }
@@ -106,53 +109,36 @@ export default function ChatPage() {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
       recognition.interimResults = true;
-      recognition.continuous = false;
+      recognition.continuous = true; // Key change for long paragraphs
 
       recognition.onresult = event => {
-        let interimTranscript = '';
         let finalTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
+          finalTranscript += event.results[i][0].transcript;
         }
-        setTranscript(finalTranscript || interimTranscript);
+        setTranscript(finalTranscript);
       };
 
       recognition.onerror = event => {
+        console.error('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
-          toast({
-            variant: 'destructive',
-            title: 'Microphone Access Denied',
-            description: 'Please allow microphone access in your browser settings to use voice features.',
-          });
-        } else if (event.error === 'aborted' || event.error === 'no-speech') {
-          console.log(`Speech recognition stopped gracefully: ${event.error}`);
+          setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
+          setIsListening(false);
+        } else if (event.error === 'no-speech') {
+          // This is normal, just ignore it and let it continue.
         } else {
-          console.error('Speech recognition error:', event.error);
-          toast({
-            variant: 'destructive',
-            title: 'Recognition Error',
-            description: `An audio error occurred. Please try again. (${event.error})`,
-          });
+          // Handle other errors gracefully
+           setIsListening(false);
         }
-        setIsListening(false);
       };
       
       recognition.onstart = () => {
           setIsListening(true);
+          setMicError(null);
       };
 
       recognition.onend = () => {
         setIsListening(false);
-        setTranscript(currentTranscript => {
-            if (currentTranscript.trim() && !isLoading) {
-                handleSendMessage({ message: currentTranscript.trim() });
-            }
-            return currentTranscript;
-        });
       };
       
       recognitionRef.current = recognition;
@@ -163,6 +149,7 @@ export default function ChatPage() {
           title: 'Browser Not Supported',
           description: 'Speech recognition is not supported in your browser.',
        });
+       setMicError("Speech recognition is not supported in your browser.");
     }
 
     return () => {
@@ -182,28 +169,31 @@ export default function ChatPage() {
       <div onClick={isListening ? stopListening : startListening}>
         <VoiceOrb transcript={transcript} isListening={isListening} />
       </div>
-       {!isListening && !transcript && (
+      {micError && (
+        <div className="mt-8 max-w-md rounded-md bg-destructive/10 p-4 text-center text-destructive">
+          <h2 className="font-semibold">Microphone Error</h2>
+          <p className="text-sm">{micError}</p>
+          <button onClick={startListening} className="mt-2 text-sm font-semibold underline">
+            Try Again
+          </button>
+        </div>
+      )}
+       {!isListening && !transcript && !micError && (
          <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
        )}
-       {isListening && !transcript && (
+       {isListening && !transcript && !micError && (
          <p className="mt-8 text-2xl font-semibold text-foreground h-8">Listening...</p>
        )}
         <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
-          {transcript}
+          {/* This space is intentionally left for the main input to handle transcript display */}
         </p>
     </div>
   );
 
-  const activateListening = () => {
-    if (!isLoading && !isListening) {
-      startListening();
-    }
-  }
-
   return (
     <div className="flex h-screen flex-col bg-background">
       <ChatHeader />
-      <main className="flex-1 overflow-y-auto" onClick={activateListening}>
+      <main className="flex-1 overflow-y-auto" onClick={startListening}>
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (

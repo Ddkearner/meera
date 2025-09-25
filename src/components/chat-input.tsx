@@ -39,13 +39,11 @@ export function ChatInput({
   });
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const hasTyped = useRef(false);
 
   useEffect(() => {
-    // Only update form value if the user hasn't started typing manually
-    if (!hasTyped.current) {
-      form.setValue('message', value || '');
-    }
+    // Directly set the form value from the transcript prop
+    form.setValue('message', value || '');
+
     // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -55,7 +53,6 @@ export function ChatInput({
 
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
     if (isLoading) return;
-    hasTyped.current = false;
     onSubmit(values);
     form.reset();
     if (onValueChange) onValueChange('');
@@ -68,8 +65,6 @@ export function ChatInput({
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       form.handleSubmit(handleFormSubmit)();
-    } else {
-      hasTyped.current = true;
     }
   };
 
@@ -112,7 +107,6 @@ export function ChatInput({
                         onChange={(e) => {
                           field.onChange(e);
                           if (onValueChange) onValueChange(e.target.value);
-                          hasTyped.current = e.target.value !== '';
                         }}
                       />
                     </FormControl>
