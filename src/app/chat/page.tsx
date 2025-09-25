@@ -51,7 +51,10 @@ export default function ChatPage() {
   
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center">
-      <MeeraAvatar className="h-16 w-16 mb-4" />
+      <div className="relative mb-4">
+        <div className="absolute -inset-2 rounded-full bg-gradient-to-br from-primary/50 to-accent/50 opacity-20 blur-2xl"></div>
+        <MeeraAvatar className="h-16 w-16" />
+      </div>
       <h2 className="text-2xl font-semibold">How can I help you today?</h2>
     </div>
   );

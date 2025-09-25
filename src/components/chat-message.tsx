@@ -38,11 +38,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
         className={cn(
           'flex max-w-[90%] flex-col gap-1 rounded-lg px-3 py-2 text-sm shadow-sm md:max-w-[75%]',
           isUserModel
-            ? 'bg-card'
+            ? 'bg-card/50'
             : 'bg-primary text-primary-foreground'
         )}
       >
-        <div className="prose prose-sm prose-p:leading-normal break-words text-foreground dark:prose-invert">
+        <div className="prose prose-sm prose-p:leading-normal break-words text-foreground dark:prose-invert prose-p:text-foreground">
           {message.content}
         </div>
       </div>

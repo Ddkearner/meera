@@ -3,7 +3,6 @@ import { useEffect, useRef } from 'react';
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { ChatMessage } from './chat-message';
 import { MeeraAvatar } from './meera-avatar';
-import { Loader2 } from 'lucide-react';
 
 interface ChatMessagesProps {
   messages: ChatMessageType[];
@@ -29,8 +28,12 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
           <div className="group relative flex items-start md:-ml-12">
             <MeeraAvatar className="mr-4 hidden h-8 w-8 md:flex" />
             <div className="flex items-center space-x-2 rounded-lg bg-card p-3 shadow-sm">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Meera is typing...</span>
+              <div className="flex items-center gap-1">
+                <span className="h-1.5 w-1.5 animate-pulse-fast rounded-full bg-gradient-to-r from-pink-500 to-blue-500"></span>
+                <span className="h-1.5 w-1.5 animate-pulse-fast rounded-full bg-gradient-to-r from-blue-500 to-green-500 [animation-delay:0.2s]"></span>
+                <span className="h-1.5 w-1.5 animate-pulse-fast rounded-full bg-gradient-to-r from-green-500 to-yellow-500 [animation-delay:0.4s]"></span>
+              </div>
+              <span className="text-sm text-muted-foreground">Meera is typing...</span>
             </div>
           </div>
         )}

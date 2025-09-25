@@ -38,7 +38,8 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
   };
 
   return (
-    <div className="w-full shrink-0 border-t bg-background px-4 py-3 md:px-6">
+    <div className="w-full shrink-0 border-t bg-background/50 px-4 py-3 md:px-6">
+       <div className="absolute bottom-full left-0 w-full h-20 bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
       <div className="mx-auto max-w-3xl">
         <Form {...form}>
           <form
@@ -53,7 +54,7 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
                   <FormControl>
                     <Textarea
                       placeholder="Ask me anything..."
-                      className="max-h-48 resize-none pr-14"
+                      className="max-h-48 resize-none pr-14 bg-secondary/50 border-border/50"
                       rows={1}
                       onKeyDown={handleKeyDown}
                       {...field}
