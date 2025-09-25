@@ -18,7 +18,10 @@ export function ChatMessages({
   useEffect(() => {
     const container = scrollableContainerRef.current;
     if (container) {
-      container.scrollTop = container.scrollHeight;
+      // Use a timeout to ensure the scroll happens after the DOM update
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 0);
     }
   }, [messages, isLoading]);
 
