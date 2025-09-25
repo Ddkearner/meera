@@ -1,21 +1,8 @@
 import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MeeraAvatar } from './meera-avatar';
-import { Avatar } from '@/components/ui/avatar';
+import { UserAvatar } from './user-avatar';
 import { Prose } from '@/components/prose';
-
-export function UserAvatar({ className }: { className?: string }) {
-  return (
-    <div
-      className={cn(
-        'relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/80 text-primary-foreground',
-        className
-      )}
-    >
-      <span className="font-semibold text-sm">Y</span>
-    </div>
-  );
-}
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -29,17 +16,21 @@ export function ChatMessage({ message }: ChatMessageProps) {
     >
       {isUserModel ? <MeeraAvatar className="h-8 w-8" /> : <UserAvatar />}
       <div
-        className={cn('flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]', {
-          'meera-gradient rounded-lg p-4 text-white': isUserModel,
-        })}
+        className={cn(
+          'relative flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]',
+          {
+            'meera-message-container': isUserModel,
+            'rounded-lg bg-secondary p-4': !isUserModel,
+          }
+        )}
       >
-        <Prose
-          className={cn('break-words', {
-            'prose-invert': isUserModel,
-          })}
-        >
-          {message.content}
-        </Prose>
+        <div className={cn('relative z-10 rounded-lg bg-card p-4', { 'bg-white': isUserModel })}>
+            <Prose
+            className={cn('break-words')}
+            >
+            {message.content}
+            </Prose>
+        </div>
       </div>
     </div>
   );
