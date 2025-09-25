@@ -19,56 +19,43 @@ export default function ChatPage() {
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const isMounted = useRef(false);
+  const finalTranscriptRef = useRef('');
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (error) {
-        if ((error as DOMException).name !== 'InvalidStateError') {
-          console.error("Speech recognition could not start:", error);
-        }
-      }
+    if (recognitionRef.current) {
+      finalTranscriptRef.current = transcript; // Preserve current input
+      recognitionRef.current.start();
     }
-  }, [isListening]);
-  
+  }, [transcript]);
+
   const stopListening = useCallback(() => {
-    if (recognitionRef.current && isListening) {
+    if (recognitionRef.current) {
       recognitionRef.current.stop();
-      setIsListening(false);
     }
-  }, [isListening]);
-  
+  }, []);
+
   useEffect(() => {
-    if (isMounted.current) return;
-    isMounted.current = true;
-
     if (typeof window === 'undefined') return;
-    
+
     if (!audioRef.current) {
-        audioRef.current = new Audio();
+      audioRef.current = new Audio();
     }
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       const recognition = new SpeechRecognition();
       recognition.lang = 'en-US';
       recognition.interimResults = true;
       recognition.continuous = true;
 
-      recognition.onresult = event => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-        for (let i = 0; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-        setTranscript(finalTranscript + interimTranscript);
+      recognition.onstart = () => {
+        setIsListening(true);
+        setMicError(null);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
       };
 
       recognition.onerror = event => {
@@ -77,27 +64,26 @@ export default function ChatPage() {
         }
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
-        } else {
-           console.error('Speech recognition error:', event.error);
         }
         setIsListening(false);
       };
-      
-      recognition.onstart = () => {
-          setIsListening(true);
-          setMicError(null);
-      };
 
-      recognition.onend = () => {
-        setIsListening(false);
-        // Do not automatically restart here to prevent loops.
-        // The user can restart by clicking the orb.
+      recognition.onresult = event => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscriptRef.current += event.results[i][0].transcript;
+          } else {
+            interimTranscript += event.results[i][0].transcript;
+          }
+        }
+        setTranscript(finalTranscriptRef.current + interimTranscript);
       };
       
       recognitionRef.current = recognition;
       startListening();
     } else {
-       setMicError("Speech recognition is not supported in your browser.");
+      setMicError('Speech recognition is not supported in your browser.');
     }
 
     return () => {
@@ -125,12 +111,15 @@ export default function ChatPage() {
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setTranscript('');
+    finalTranscriptRef.current = '';
 
     try {
-      const historyForAI = [...messages, userMessage].slice(0, -1).map(msg => ({
-        role: msg.role as 'user' | 'model',
-        content: [{ text: msg.content }],
-      }));
+      const historyForAI = [...messages, userMessage]
+        .slice(0, -1)
+        .map(msg => ({
+          role: msg.role as 'user' | 'model',
+          content: [{ text: msg.content }],
+        }));
 
       const response = await runChatFlow({
         history: historyForAI,
@@ -145,9 +134,17 @@ export default function ChatPage() {
 
       const audioResponse = await runTextToSpeech(response.response);
       if (audioResponse?.media && audioRef.current) {
-          audioRef.current.src = audioResponse.media;
-          audioRef.current.play();
-          // Dont automatically start listening after TTS
+        audioRef.current.src = audioResponse.media;
+        audioRef.current.play().catch(e => console.error("Audio play failed", e));
+        audioRef.current.onended = () => {
+           if (!isListening && recognitionRef.current?.readyState !== 1) {
+             startListening();
+           }
+        }
+      } else {
+        if (!isListening && recognitionRef.current?.readyState !== 1) {
+          startListening();
+        }
       }
     } catch (error) {
       console.error('Error calling AI flow:', error);
@@ -156,14 +153,19 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
+       if (!isListening && recognitionRef.current?.readyState !== 1) {
+          startListening();
+        }
     } finally {
       setIsLoading(false);
     }
   };
+
+  const isTranscribing = isListening && transcript.length > 0;
   
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4">
-      <VoiceOrb isListening={isListening} />
+      <VoiceOrb isListening={isListening} className="h-24 w-24" />
       {micError && (
         <div className="mt-8 max-w-md rounded-md bg-destructive/10 p-4 text-center text-destructive">
           <h2 className="font-semibold">Microphone Error</h2>
@@ -182,11 +184,9 @@ export default function ChatPage() {
     </div>
   );
 
-  const isTranscribing = isListening && transcript.length > 0 && messages.length > 0;
-
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={isTranscribing} />
+      <ChatHeader isListening={isTranscribing && messages.length > 0} />
       <main className="flex-1 overflow-y-auto">
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
