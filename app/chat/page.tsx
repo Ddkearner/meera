@@ -12,23 +12,26 @@ import { useTypewriter } from '@/hooks/use-typewriter';
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false); // Restored state
+  const [isListening, setIsListening] = useState(false);
   const { toast } = useToast();
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
 
   useEffect(() => {
-    if (typewriterText) {
+    // This effect updates the last message with the typewriter text
+    if (isTyping || typewriterText) {
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMessage = newMessages[newMessages.length - 1];
         if (lastMessage && lastMessage.role === 'model') {
+          // If the typewriter has finished, the final text might be slightly different
+          // so we ensure the last bit is captured.
           lastMessage.content = typewriterText;
           return newMessages;
         }
         return prev;
       });
     }
-  }, [typewriterText]);
+  }, [typewriterText, isTyping]);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
@@ -48,6 +51,8 @@ export default function ChatPage() {
         history: historyForAI,
         message: messageText,
       });
+      
+      setIsLoading(false); // Stop loading animation once response is received
 
       if (response.response) {
         const modelMessage: ChatMessage = { role: 'model', content: '' };
@@ -64,8 +69,7 @@ export default function ChatPage() {
         description: 'Failed to get a response. Please try again.',
       });
       // Remove the optimistic user message if the API call fails
-      setMessages(prev => prev.slice(0, -1));
-    } finally {
+      setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsLoading(false);
     }
   };
@@ -108,7 +112,7 @@ export default function ChatPage() {
         {messages.length === 0 && !isLoading ? (
           <WelcomeScreen />
         ) : (
-          <ChatMessages messages={messages} isLoading={isLoading && !isTyping} />
+          <ChatMessages messages={messages} isLoading={isLoading} />
         )}
       </main>
       <ChatInput

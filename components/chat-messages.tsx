@@ -20,6 +20,7 @@ export function ChatMessages({
     const container = scrollableContainerRef.current;
     if (container) {
       const { scrollTop, scrollHeight, clientHeight } = container;
+      // We consider it "at the bottom" if it's within a small tolerance
       isAtBottom.current = scrollHeight - scrollTop - clientHeight < 10;
     }
   };
@@ -27,6 +28,7 @@ export function ChatMessages({
   useEffect(() => {
     const container = scrollableContainerRef.current;
     if (container && isAtBottom.current) {
+      // Smoothly scroll to the bottom
       container.scrollTop = container.scrollHeight;
     }
   }, [messages, isLoading]);
@@ -39,6 +41,9 @@ export function ChatMessages({
     }
   }, []);
 
+  const lastMessage = messages[messages.length - 1];
+  const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
+
   return (
     <div
       ref={scrollableContainerRef}
@@ -48,7 +53,7 @@ export function ChatMessages({
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
         ))}
-        {isLoading && (
+        {showLoading && (
           <div className="group relative flex items-start gap-4 animate-message-in">
             <MeeraAvatar className="h-8 w-8" />
             <div className="flex items-center space-x-2 rounded-lg bg-card p-3">
