@@ -40,7 +40,6 @@ export default function ChatPage() {
 
   const handleSendMessage = async (values: { message: string }) => {
     if (!values.message.trim()) {
-        if (!isLoading) startListening();
         return;
     };
 
@@ -123,19 +122,22 @@ export default function ChatPage() {
       };
 
       recognition.onerror = event => {
-        if (event.error === 'aborted' || event.error === 'no-speech') {
+        if (event.error === 'not-allowed') {
+          toast({
+            variant: 'destructive',
+            title: 'Microphone Access Denied',
+            description: 'Please allow microphone access in your browser settings to use voice features.',
+          });
+        } else if (event.error === 'aborted' || event.error === 'no-speech') {
           console.log(`Speech recognition stopped gracefully: ${event.error}`);
-          // Just stop, don't show an error or immediately restart.
-          // The user can click to start again or it will restart after a message.
-          setIsListening(false);
-          return;
+        } else {
+          console.error('Speech recognition error:', event.error);
+          toast({
+            variant: 'destructive',
+            title: 'Recognition Error',
+            description: `An audio error occurred. Please try again. (${event.error})`,
+          });
         }
-        console.error('Speech recognition error:', event.error);
-        toast({
-          variant: 'destructive',
-          title: 'Recognition Error',
-          description: `An audio error occurred. Please try again. (${event.error})`,
-        });
         setIsListening(false);
       };
       
@@ -145,8 +147,6 @@ export default function ChatPage() {
 
       recognition.onend = () => {
         setIsListening(false);
-        // This is the key change: we capture the final transcript
-        // and then decide to send it. We are not calling startListening here.
         setTranscript(currentTranscript => {
             if (currentTranscript.trim() && !isLoading) {
                 handleSendMessage({ message: currentTranscript.trim() });
