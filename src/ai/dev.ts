@@ -5,4 +5,3 @@ import '@/ai/flows/summarize-text.ts';
 import '@/ai/flows/explain-concept.ts';
 import '@/ai/flows/generate-study-plan.ts';
 import '@/ai/flows/chat.ts';
-import '@/ai/flows/text-to-speech.ts';

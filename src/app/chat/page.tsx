@@ -7,8 +7,7 @@ import { ChatMessages } from '@/components/chat-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceOrb } from '@/components/voice-orb';
-import { runChatFlow, runTextToSpeech } from '@/lib/actions';
-import { useTypewriter } from '@/hooks/use-typewriter';
+import { runChatFlow } from '@/lib/actions';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -20,36 +19,6 @@ export default function ChatPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalTranscriptRef = useRef('');
   const [isListening, setIsListening] = useState(false);
-
-  const { typedResponse, startTypewriter, stopTypewriter } = useTypewriter(
-    (finalText) => {
-      // Update the last message with the final content when the typewriter finishes.
-      setMessages(prev => {
-        const newMessages = [...prev];
-        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
-          newMessages[newMessages.length - 1].content = finalText;
-        }
-        return newMessages;
-      });
-
-      if (recognitionRef.current && !isListening) {
-        startListening();
-      }
-    }
-  );
-
-  useEffect(() => {
-    // This effect updates the content of the last message as the typewriter types.
-    if (typedResponse) {
-      setMessages(prev => {
-        const newMessages = [...prev];
-        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
-          newMessages[newMessages.length - 1].content = typedResponse;
-        }
-        return newMessages;
-      });
-    }
-  }, [typedResponse]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
@@ -124,7 +93,6 @@ export default function ChatPage() {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
-      stopTypewriter();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -138,15 +106,14 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    // Add user message and an empty placeholder for the AI response
-    setMessages(prev => [...prev, userMessage, { role: 'model', content: '' }]);
+    const newMessages: ChatMessage[] = [...messages, userMessage];
+    setMessages(newMessages);
     setTranscript('');
     finalTranscriptRef.current = '';
     setIsLoading(true);
-    stopTypewriter();
 
     try {
-      const historyForAI = [...messages, userMessage]
+      const historyForAI = newMessages
         .filter(msg => msg.content.trim() !== '')
         .map(msg => ({
           role: msg.role as 'user' | 'model',
@@ -154,7 +121,7 @@ export default function ChatPage() {
         }));
 
       const response = await runChatFlow({
-        history: historyForAI,
+        history: historyForAI.slice(0, -1),
         message: messageText,
       });
 
@@ -162,20 +129,18 @@ export default function ChatPage() {
         throw new Error("No response from AI");
       }
       
-      const audioResponse = await runTextToSpeech(response.response);
-      
+      const modelMessage: ChatMessage = { role: 'model', content: response.response };
+      setMessages(prev => [...prev, modelMessage]);
       setIsLoading(false);
 
-      if (audioResponse?.media) {
-         startTypewriter(response.response, audioResponse.media);
-      } else {
-        startTypewriter(response.response);
+      if (recognitionRef.current && !isListening) {
+        startListening();
       }
 
     } catch (error) {
       setIsLoading(false);
        // Remove the empty model message placeholder on error
-      setMessages(prev => prev.slice(0, prev.length -1));
+      setMessages(prev => prev.slice(0, prev.length));
       toast({
         variant: 'destructive',
         title: 'Error',
