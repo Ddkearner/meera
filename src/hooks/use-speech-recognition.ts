@@ -40,6 +40,12 @@ export const useSpeechRecognition = () => {
     };
 
     recognition.onerror = (event) => {
+      // The 'no-speech' error is a normal event when the user is silent.
+      // We can safely ignore it to prevent cluttering the console.
+      if (event.error === 'no-speech') {
+        return;
+      }
+      
       console.error('Speech recognition error:', event.error);
       if (event.error === 'not-allowed') {
         // You could show a toast or message to the user here
