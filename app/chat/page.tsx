@@ -12,6 +12,7 @@ import { useTypewriter } from '@/hooks/use-typewriter';
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false); // Restored state
   const { toast } = useToast();
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
 
@@ -34,12 +35,11 @@ export default function ChatPage() {
     if (!messageText) return;
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    const newMessages: ChatMessage[] = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
 
     try {
-      const historyForAI = newMessages.slice(0, -1).map(msg => ({
+      const historyForAI = messages.map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
@@ -49,17 +49,13 @@ export default function ChatPage() {
         message: messageText,
       });
 
-      if (!response || !response.response) {
+      if (response.response) {
+        const modelMessage: ChatMessage = { role: 'model', content: '' };
+        setMessages(prev => [...prev, modelMessage]);
+        startTypewriter(response.response);
+      } else {
         throw new Error('No valid response from AI');
       }
-
-      const modelMessage: ChatMessage = {
-        role: 'model',
-        content: '',
-      };
-      setMessages(prev => [...prev, modelMessage]);
-      startTypewriter(response.response);
-
     } catch (error) {
       console.error('Error getting response:', error);
       toast({
@@ -67,11 +63,13 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
+      // Remove the optimistic user message if the API call fails
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setIsLoading(false);
     }
   };
-  
+
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4 animate-message-in">
       <div className="h-32 w-32">
@@ -103,10 +101,9 @@ export default function ChatPage() {
     </div>
   );
 
-
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={false} />
+      <ChatHeader isListening={isListening} />
       <main className="flex-1 overflow-y-auto">
         {messages.length === 0 && !isLoading ? (
           <WelcomeScreen />
