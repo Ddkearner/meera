@@ -14,33 +14,13 @@ export function ChatMessages({
   isLoading,
 }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
-  const isAtBottom = useRef(true);
-
-  const handleScroll = () => {
-    const container = scrollableContainerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // A little buffer is added to account for fractional values
-      isAtBottom.current = scrollHeight - scrollTop - clientHeight < 10;
-    }
-  };
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
-    // Only scroll to bottom if the user was already at the bottom
-    if (container && isAtBottom.current) {
+    if (container) {
       container.scrollTop = container.scrollHeight;
     }
   }, [messages, isLoading]);
-
-  useEffect(() => {
-    const container = scrollableContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
-
 
   const lastMessage = messages[messages.length - 1];
   const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
