@@ -9,6 +9,8 @@ import {
   type StreamingChatOutput,
 } from '@/lib/types';
 import { z } from 'zod';
+import type { StreamableValue } from 'ai/rsc';
+
 
 const systemPrompt = `You are Meera, a friendly, encouraging, and helpful AI assistant for students. Your primary goal is to provide clear, concise, and accurate information. 
 
@@ -26,15 +28,14 @@ const chatWithMeeraFlow = ai.defineFlow(
     name: 'chatWithMeeraFlow',
     inputSchema: StreamingChatInputSchema,
     outputSchema: z.string(),
-    stream: z.string(),
   },
-  async ({ history, message }, streamingCallback) => {
+  async ({ history, message }, stream) => {
     const historyForAI: MessageData[] = history.map(h => ({
       role: h.role,
       content: h.content,
     }));
 
-    const { stream } = await ai.generate({
+    const { stream: responseStream } = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
       system: systemPrompt,
       prompt: message,
@@ -43,13 +44,11 @@ const chatWithMeeraFlow = ai.defineFlow(
     });
 
     let responseText = '';
-    for await (const chunk of stream) {
+    for await (const chunk of responseStream) {
       const text = chunk.text;
       if (text) {
         responseText += text;
-        if (streamingCallback) {
-          streamingCallback(text);
-        }
+        stream.update(text);
       }
     }
 
@@ -59,8 +58,8 @@ const chatWithMeeraFlow = ai.defineFlow(
 
 export async function streamChatWithMeera(
   input: StreamingChatInput,
-  streamingCallback: (chunk: string) => void
+  stream: StreamableValue<string>
 ): Promise<StreamingChatOutput> {
-  const finalResponse = await chatWithMeeraFlow(input, streamingCallback);
+  const finalResponse = await chatWithMeeraFlow(input, stream);
   return { response: finalResponse };
 }

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { runChatFlow, runTextToSpeech } from '@/lib/actions';
 import type { StreamingChatInput } from '@/lib/types';
 import { useToast } from './use-toast';
+import { createStreamableValue, readStreamableValue } from 'ai/rsc';
 
 interface UseStreamingChatProps {
   onStreamEnd?: (finalText: string) => void;
@@ -37,7 +38,6 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
         if (audioResponse?.media) {
           audioRef.current.src = audioResponse.media;
           
-          // Ensure the previous audio is finished before playing the new one
           await new Promise<void>((resolve) => {
             if (audioRef.current?.paused) {
               resolve();
@@ -66,7 +66,6 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
   }, []);
 
   const processTextForAudio = useCallback((text: string) => {
-    // Simple sentence-based chunking.
     const sentences = text.split(/(?<=[.?!])\s+/).filter(s => s.trim().length > 0);
     sentences.forEach(sentence => audioQueue.current.push(sentence));
     if (!isPlayingAudio.current) {
@@ -79,16 +78,18 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
     setStreamingResponse('');
     audioQueue.current = [];
     isPlayingAudio.current = false;
+    
+    const streamable = createStreamableValue('');
+    runChatFlow(input, streamable.value);
 
     try {
       let accumulatedText = '';
-      await runChatFlow(input, (chunk: string) => {
-        accumulatedText += chunk;
-        setStreamingResponse(prev => prev + chunk);
-        processTextForAudio(chunk);
-      });
+      for await (const chunk of readStreamableValue(streamable)) {
+          accumulatedText += chunk;
+          setStreamingResponse(prev => prev + chunk);
+          processTextForAudio(chunk);
+      }
 
-      // Wait for the last audio chunk to finish
       const checkAudio = setInterval(() => {
         if (!isPlayingAudio.current && audioQueue.current.length === 0) {
           clearInterval(checkAudio);
@@ -110,8 +111,6 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
   }, [onStreamEnd, onStreamError, processTextForAudio, toast]);
 
   const stopStream = useCallback(() => {
-    // This is a placeholder. In a true HTTP stream, you would abort the fetch request.
-    // For this Server Action-based stream, we can only stop the client-side effects.
     setIsLoading(false);
     if (audioRef.current) {
       audioRef.current.pause();
