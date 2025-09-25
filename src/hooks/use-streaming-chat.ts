@@ -91,8 +91,9 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
           accumulatedText += chunk;
           setMessages(prev => {
             const newMessages = [...prev];
-            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
-              newMessages[newMessages.length - 1].content += chunk;
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.role === 'model') {
+              lastMessage.content += chunk;
             }
             return newMessages;
           });
@@ -118,8 +119,9 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
         setIsLoading(false);
         setMessages(prev => {
             const newMessages = [...prev];
-            if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
-              newMessages[newMessages.length - 1].content = accumulatedText;
+            const lastMessage = newMessages[newMessages.length - 1];
+            if (lastMessage && lastMessage.role === 'model') {
+              lastMessage.content = accumulatedText;
             }
             return newMessages;
         });

@@ -36,13 +36,16 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
     }
   }, []);
 
+  const lastMessage = messages[messages.length - 1];
+  const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
+
   return (
     <div ref={scrollableContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mx-auto max-w-3xl space-y-8">
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
         ))}
-        {isLoading && (
+        {showLoading && (
           <div className="group relative flex items-start gap-4">
             <MeeraAvatar className="h-8 w-8" />
             <div className="flex items-center space-x-2 rounded-lg bg-card p-3">

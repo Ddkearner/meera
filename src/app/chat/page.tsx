@@ -18,7 +18,7 @@ export default function ChatPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const finalTranscriptRef = useRef('');
-  
+
   const {
     startStream,
     stopStream,
@@ -102,15 +102,16 @@ export default function ChatPage() {
 
       recognition.onresult = event => {
         let interimTranscript = '';
-        finalTranscriptRef.current = ''; 
+        let finalTranscript = finalTranscriptRef.current;
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscriptRef.current += event.results[i][0].transcript;
+            finalTranscript += event.results[i][0].transcript;
           } else {
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        setTranscript(finalTranscriptRef.current + interimTranscript);
+        finalTranscriptRef.current = finalTranscript;
+        setTranscript(finalTranscript + interimTranscript);
       };
       
       recognitionRef.current = recognition;
@@ -148,6 +149,7 @@ export default function ChatPage() {
     finalTranscriptRef.current = '';
 
     const historyForAI = newMessages
+      .filter(msg => msg.content.trim() !== '') // Exclude empty messages
       .map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
@@ -189,7 +191,7 @@ export default function ChatPage() {
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
-          <ChatMessages messages={messages} isLoading={isLoading && messages[messages.length-1]?.content === ''} />
+          <ChatMessages messages={messages} isLoading={isLoading} />
         )}
       </main>
       <ChatInput
