@@ -40,6 +40,20 @@ export function useTypewriter(onEnd?: (finalText: string) => void) {
     }
   }, []);
 
+  const stopTypewriter = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+     if (audioRef.current) {
+        audioRef.current.pause();
+        // By setting src to '', we ensure that the audio stops immediately
+        // and doesn't continue playing the buffered content.
+        audioRef.current.src = '';
+    }
+    setTypedResponse('');
+  }, []);
+
   const startTypewriter = useCallback((text: string) => {
     if (!text) return;
     
@@ -61,20 +75,6 @@ export function useTypewriter(onEnd?: (finalText: string) => void) {
     };
     type();
   }, [playAudio, stopTypewriter]);
-
-  const stopTypewriter = useCallback(() => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-     if (audioRef.current) {
-        audioRef.current.pause();
-        // By setting src to '', we ensure that the audio stops immediately
-        // and doesn't continue playing the buffered content.
-        audioRef.current.src = '';
-    }
-    setTypedResponse('');
-  }, []);
 
   return { typedResponse, startTypewriter, stopTypewriter };
 }
