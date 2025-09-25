@@ -1,9 +1,9 @@
 'use client';
-import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MeeraAvatar } from './meera-avatar';
 import { Prose } from '@/components/prose';
 import { UserAvatar } from './user-avatar';
+import type { ChatMessage as ChatMessageType } from '@/lib/types';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -28,7 +28,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
         )}
       >
         <div
-          className={cn('relative z-10', {
+          className={cn('prose relative z-10', {
             'rounded-lg bg-white p-4': isUserModel,
           })}
         >
