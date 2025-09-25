@@ -31,7 +31,8 @@ export default function ChatPage() {
     if (browserSupportsSpeechRecognition && !isListening) {
       startListening();
     }
-  }, [browserSupportsSpeechRecognition, isListening, startListening]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browserSupportsSpeechRecognition]);
 
   useEffect(() => {
     if (transcript) {
@@ -41,16 +42,14 @@ export default function ChatPage() {
 
   useEffect(() => {
     setMessages(prev => {
-      if (prev.length === 0) return [];
+      if (prev.length === 0 || prev[prev.length -1].role !== 'model') return prev;
+      
       const newMessages = [...prev];
       const lastMessage = newMessages[newMessages.length - 1];
 
       // Only update if the last message is from the model and the typewriter is active.
-      if (lastMessage && lastMessage.role === 'model' && (isTyping || typewriterText)) {
-        // Prevent setting content to undefined or empty string if typewriter is just starting
-        if (typewriterText) {
+      if (lastMessage && (isTyping || typewriterText)) {
           lastMessage.content = typewriterText;
-        }
         return newMessages;
       }
       return prev;
