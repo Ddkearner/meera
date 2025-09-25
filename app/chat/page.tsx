@@ -122,7 +122,7 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    const newMessages = [...messages, userMessage];
+    const newMessages: ChatMessage[] = [...messages, userMessage];
     setMessages(newMessages);
     setInputValue('');
     setIsLoading(true);
@@ -132,10 +132,6 @@ export default function ChatPage() {
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
-
-      // Remove the last message from the history sent to the AI
-      // as it is the current user prompt.
-      historyForAI.pop();
       
       const response = await runChatFlow({
         history: historyForAI,

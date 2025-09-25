@@ -73,7 +73,8 @@ body {
   animation: gradient 10s ease infinite;
 }
 
-:not(.dark) .header-gradient::before {
+.dark .header-gradient::before,
+.header-gradient::before {
   content: '';
   position: absolute;
   top: 0;
@@ -88,7 +89,7 @@ body {
   animation: gradient 10s ease infinite;
 }
 
-
+.dark .input-gradient-border,
 .input-gradient-border {
   background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
   background-size: 400% 400%;
@@ -107,6 +108,7 @@ body {
   }
 }
 
+.dark .meera-message-container,
 .meera-message-container {
   position: relative;
   padding: 1px; /* This creates the space for the border-like effect */

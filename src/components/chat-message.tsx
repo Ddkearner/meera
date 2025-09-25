@@ -23,13 +23,13 @@ export function ChatMessage({ message }: ChatMessageProps) {
           'relative flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]',
           {
             'meera-message-container': isUserModel,
-            'rounded-lg bg-white border p-4': !isUserModel,
+            'rounded-lg bg-white border p-4 dark:bg-slate-800 dark:border-slate-700': !isUserModel,
           }
         )}
       >
         <div
           className={cn('relative z-10', {
-            'rounded-lg bg-white p-4': isUserModel,
+            'rounded-lg bg-white p-4 dark:bg-slate-800': isUserModel,
           })}
         >
           <Prose className="break-words">{message.content}</Prose>
