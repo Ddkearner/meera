@@ -22,7 +22,7 @@ export default function ChatPage() {
     transcript,
     startListening,
     stopListening,
-    browserSupportsSpeechRecognition
+    browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
 
   // This effect now correctly depends only on browser support and the start function reference.
@@ -58,8 +58,10 @@ export default function ChatPage() {
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
     if (!messageText) return;
-    
-    stopListening(); // Stop listening when a message is sent
+
+    if (isListening) {
+      stopListening();
+    }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
@@ -96,17 +98,25 @@ export default function ChatPage() {
       setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsLoading(false);
     } finally {
-        // Restart listening after AI response is complete or on error, if supported
-        if (browserSupportsSpeechRecognition) {
-            // A short delay helps prevent race conditions with the speech recognition service
-            const restartTimeout = setTimeout(() => {
-                if (!isListening) {
-                    startListening();
-                }
-            }, 500); 
-            // Cleanup timeout on component unmount
-            return () => clearTimeout(restartTimeout);
-        }
+      // Restart listening after AI response is complete or on error, if supported
+      if (browserSupportsSpeechRecognition) {
+        // A short delay helps prevent race conditions with the speech recognition service
+        const restartTimeout = setTimeout(() => {
+          if (!isListening) {
+            startListening();
+          }
+        }, 500);
+        // Cleanup timeout on component unmount
+        return () => clearTimeout(restartTimeout);
+      }
+    }
+  };
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   };
 
@@ -117,7 +127,9 @@ export default function ChatPage() {
         <div className="absolute inset-4 meera-gradient rounded-full filter blur-xl opacity-60 animate-pulse-slow"></div>
         <div className="absolute inset-8 meera-gradient rounded-full filter blur-lg opacity-70 animate-pulse"></div>
       </div>
-      <h2 className="mt-8 text-2xl font-semibold text-gray-700 dark:text-gray-300">How can I help you today?</h2>
+      <h2 className="mt-8 text-2xl font-semibold text-gray-700 dark:text-gray-300">
+        How can I help you today?
+      </h2>
     </div>
   );
 
@@ -135,6 +147,8 @@ export default function ChatPage() {
         onSubmit={handleSendMessage}
         isLoading={isLoading || isTyping}
         isListening={isListening}
+        onVoiceToggle={handleVoiceToggle}
+        browserSupportsSpeechRecognition={browserSupportsSpeechRecognition}
         inputValue={inputValue}
         setInputValue={setInputValue}
       />
