@@ -52,12 +52,12 @@ export default function ChatPage() {
   }, [typedResponse]);
 
   const startListening = useCallback(() => {
-    if (recognitionRef.current) {
+    if (recognitionRef.current && !isListening) {
       finalTranscriptRef.current = transcript;
       recognitionRef.current.start();
       setIsListening(true);
     }
-  }, [transcript]);
+  }, [transcript, isListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
