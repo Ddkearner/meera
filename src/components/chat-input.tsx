@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { ArrowUp } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { cn } from '@/lib/utils';
 
 const formSchema = z.object({
   message: z.string().min(1),
@@ -18,6 +19,7 @@ interface ChatInputProps {
   isLoading: boolean;
   value?: string;
   onValueChange?: (value: string) => void;
+  isListening?: boolean;
 }
 
 export function ChatInput({
@@ -25,6 +27,7 @@ export function ChatInput({
   isLoading,
   value,
   onValueChange,
+  isListening,
 }: ChatInputProps) {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,7 +71,10 @@ export function ChatInput({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleFormSubmit)}
-            className="relative flex items-start gap-2"
+            className={cn(
+              "relative flex items-start gap-2",
+              isListening && "listening-input-wrapper"
+            )}
           >
             <FormField
               control={form.control}
@@ -95,7 +101,7 @@ export function ChatInput({
             <Button
               type="submit"
               size="icon"
-              className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90"
+              className="absolute bottom-1.5 right-1.5 h-8 w-8 rounded-lg bg-foreground hover:bg-foreground/90 z-10"
               disabled={isLoading || !form.watch('message')}
             >
               <ArrowUp className="h-4 w-4" />

@@ -12,7 +12,7 @@ import { VoiceOrb } from '@/components/voice-orb';
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false); // Start as false, will be set to true by effect
+  const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -74,7 +74,7 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      setMessages(prev => prev.slice(0, -1));
+      // Do not remove the user message on error
        startListening(); // Start listening again on error
     } finally {
       setIsLoading(false);
@@ -86,10 +86,10 @@ export default function ChatPage() {
       try {
         setTranscript('');
         recognitionRef.current.start();
-        setIsListening(true);
+        // onstart will set isListening to true
       } catch (error) {
-         // This can happen if recognition is already starting
-         console.log("Speech recognition already starting.");
+         // This can happen if recognition is already starting, e.g. on fast re-renders
+         console.log("Speech recognition could not start, likely already starting.");
       }
     }
   }, [isListening]);
@@ -102,7 +102,7 @@ export default function ChatPage() {
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.interimResults = true;
-        recognition.continuous = true;
+        recognition.continuous = false; // Set to false to auto-detect end of speech
 
         recognition.onresult = event => {
           let interimTranscript = '';
@@ -120,7 +120,11 @@ export default function ChatPage() {
         recognition.onerror = event => {
           if (event.error === 'aborted' || event.error === 'no-speech') {
             console.log(`Speech recognition stopped: ${event.error}`);
-            // Don't show toast for these common cases
+            // Don't show toast for these common cases, just restart listening
+            if (!isLoading) {
+              // Ensure we don't restart if a message is being sent
+               startListening();
+            }
             return;
           }
           console.error('Speech recognition error:', event.error);
@@ -137,9 +141,12 @@ export default function ChatPage() {
 
         recognition.onend = () => {
           setIsListening(false);
-          // If a final transcript was captured, send it.
-          if (transcript.trim()) {
-            handleSendMessage({ message: transcript.trim() });
+          // Only send if there is a final transcript and we are not in the middle of a submission
+          if (transcript.trim() && !isLoading) {
+             handleSendMessage({ message: transcript.trim() });
+          } else if (!isLoading) {
+            // If there's no transcript, just start listening again
+            startListening();
           }
         };
         
@@ -159,7 +166,9 @@ export default function ChatPage() {
     }
 
     return () => {
-      stopListening();
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -167,7 +176,9 @@ export default function ChatPage() {
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4"  onClick={startListening}>
       <VoiceOrb transcript={transcript} isListening={isListening} />
-      <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
+       {!transcript && !isListening && (
+         <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
+       )}
     </div>
   );
 
@@ -186,6 +197,7 @@ export default function ChatPage() {
         isLoading={isLoading}
         value={transcript}
         onValueChange={setTranscript}
+        isListening={isListening}
       />
     </div>
   );
