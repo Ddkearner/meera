@@ -1,5 +1,6 @@
 'use server';
 import { chatWithMeera } from '@/ai/flows/chat';
+import { textToSpeech } from '@/ai/flows/text-to-speech';
 import type { ChatInput } from '@/lib/types';
 
 export async function runChatFlow(input: ChatInput) {
@@ -9,4 +10,11 @@ export async function runChatFlow(input: ChatInput) {
   }
 
   return await chatWithMeera(input);
+}
+
+export async function runTextToSpeech(text: string) {
+  if (!text.trim()) {
+    throw new Error('Text cannot be empty.');
+  }
+  return await textToSpeech(text);
 }
