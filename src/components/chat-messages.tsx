@@ -20,12 +20,14 @@ export function ChatMessages({
     const container = scrollableContainerRef.current;
     if (container) {
       const { scrollTop, scrollHeight, clientHeight } = container;
+      // A little buffer is added to account for fractional values
       isAtBottom.current = scrollHeight - scrollTop - clientHeight < 10;
     }
   };
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
+    // Only scroll to bottom if the user was already at the bottom
     if (container && isAtBottom.current) {
       container.scrollTop = container.scrollHeight;
     }
@@ -34,10 +36,11 @@ export function ChatMessages({
   useEffect(() => {
     const container = scrollableContainerRef.current;
     if (container) {
-      container.addEventListener('scroll', handleScroll);
+      container.addEventListener('scroll', handleScroll, { passive: true });
       return () => container.removeEventListener('scroll', handleScroll);
     }
   }, []);
+
 
   const lastMessage = messages[messages.length - 1];
   const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
@@ -52,7 +55,7 @@ export function ChatMessages({
           <ChatMessage key={index} message={message} />
         ))}
         {showLoading && (
-          <div className="group relative flex items-start gap-4">
+          <div className="group relative flex items-start gap-4 animate-message-in">
             <MeeraAvatar className="h-8 w-8" />
             <div className="flex items-center space-x-2 rounded-lg bg-card p-3">
               <div className="flex items-center gap-1.5">
