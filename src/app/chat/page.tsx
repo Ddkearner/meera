@@ -59,8 +59,8 @@ export default function ChatPage() {
       recognition.continuous = true;
 
       recognition.onresult = event => {
-        let interimTranscript = '';
         let finalTranscript = '';
+        let interimTranscript = '';
         for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscript += event.results[i][0].transcript;
@@ -182,7 +182,7 @@ export default function ChatPage() {
     </div>
   );
 
-  const isTranscribing = isListening && messages.length > 0;
+  const isTranscribing = isListening && transcript.length > 0 && messages.length > 0;
 
   return (
     <div className="flex h-screen flex-col bg-background">
