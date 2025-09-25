@@ -7,7 +7,7 @@ import { ChatMessages } from '@/components/chat-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceOrb } from '@/components/voice-orb';
-import { runChatFlow } from '@/lib/actions';
+import { runChatFlow, runTextToSpeech } from '@/lib/actions';
 import { useTypewriter } from '@/hooks/use-typewriter';
 
 export default function ChatPage() {
@@ -158,12 +158,18 @@ export default function ChatPage() {
         message: messageText,
       });
 
+      if (!response || !response.response) {
+        throw new Error("No response from AI");
+      }
+      
+      const audioResponse = await runTextToSpeech(response.response);
+      
       setIsLoading(false);
 
-      if (response && response.response) {
-        startTypewriter(response.response);
+      if (audioResponse?.media) {
+         startTypewriter(response.response, audioResponse.media);
       } else {
-        throw new Error("No response from AI");
+        startTypewriter(response.response);
       }
 
     } catch (error) {

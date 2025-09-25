@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { runTextToSpeech } from '@/lib/actions';
 
 export function useTypewriter(onEnd?: (finalText: string) => void) {
   const [typedResponse, setTypedResponse] = useState('');
@@ -27,16 +26,15 @@ export function useTypewriter(onEnd?: (finalText: string) => void) {
     };
   }, []);
 
-  const playAudio = useCallback(async (text: string) => {
-    if (!text || !audioRef.current) return;
+  const playAudio = useCallback((audioSrc: string) => {
+    if (!audioSrc || !audioRef.current) return;
     try {
-      const audioResponse = await runTextToSpeech(text);
-      if (audioResponse?.media && audioRef.current) {
-        audioRef.current.src = audioResponse.media;
+      if (audioRef.current) {
+        audioRef.current.src = audioSrc;
         audioRef.current.play().catch(e => console.error("Audio play failed", e));
       }
     } catch (error) {
-      console.error("TTS request failed", error);
+      console.error("TTS playback failed", error);
     }
   }, []);
 
@@ -47,16 +45,19 @@ export function useTypewriter(onEnd?: (finalText: string) => void) {
     }
      if (audioRef.current) {
         audioRef.current.pause();
+        audioRef.current.src = '';
     }
     setTypedResponse('');
   }, []);
 
-  const startTypewriter = useCallback((text: string) => {
+  const startTypewriter = useCallback((text: string, audioSrc?: string) => {
     if (!text) return;
     
     stopTypewriter();
     setTypedResponse('');
-    playAudio(text); // Start audio generation and playback immediately
+    if (audioSrc) {
+      playAudio(audioSrc); // Start audio playback immediately
+    }
 
     let i = 0;
     const type = () => {
