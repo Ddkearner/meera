@@ -1,6 +1,7 @@
 'use client';
 
 import { cn } from '@/lib/utils';
+import ReactMarkdown from 'react-markdown';
 import type { HTMLAttributes } from 'react';
 
 /**
@@ -8,9 +9,10 @@ import type { HTMLAttributes } from 'react';
  * It uses `@tailwindcss/typography` plugin.
  */
 export function Prose({
+  children,
   className,
   ...props
-}: HTMLAttributes<HTMLDivElement>) {
+}: { children: string } & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
@@ -18,13 +20,17 @@ export function Prose({
         // Text
         'prose-p:text-foreground/80 prose-headings:text-foreground',
         'prose-strong:text-foreground prose-em:text-foreground',
-        // Links
-        'prose-a:text-primary prose-a:transition-colors hover:prose-a:text-primary/80',
         // Lists
         'prose-ul:text-foreground/80 prose-ol:text-foreground/80',
+        'prose-li:my-1',
+        'prose-bullets:text-muted-foreground',
+        // Links
+        'prose-a:text-primary prose-a:transition-colors hover:prose-a:text-primary/80',
         className
       )}
       {...props}
-    />
+    >
+      <ReactMarkdown>{children}</ReactMarkdown>
+    </div>
   );
 }

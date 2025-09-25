@@ -23,7 +23,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
           'relative flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]',
           {
             'meera-message-container': isUserModel,
-            'rounded-lg bg-card border p-4': !isUserModel,
+            'rounded-lg bg-white border p-4': !isUserModel,
           }
         )}
       >
@@ -32,7 +32,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
             'rounded-lg bg-white p-4': isUserModel,
           })}
         >
-          <Prose className={cn('break-words')}>{message.content}</Prose>
+          <Prose className="break-words">{message.content}</Prose>
         </div>
       </div>
       {!isUserModel && <UserAvatar />}
