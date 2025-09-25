@@ -14,12 +14,14 @@ export function ChatMessages({
   isLoading,
 }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   useEffect(() => {
-    const container = scrollableContainerRef.current;
-    if (container) {
-      container.scrollTop = container.scrollHeight;
-    }
+    scrollToBottom();
   }, [messages, isLoading]);
 
   const lastMessage = messages[messages.length - 1];
@@ -46,6 +48,7 @@ export function ChatMessages({
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
     </div>
   );
