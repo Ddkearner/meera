@@ -74,7 +74,7 @@ export function ChatInput({ onSubmit, isLoading }: ChatInputProps) {
             </Button>
           </form>
         </Form>
-        <p className="text-center text-xs text-muted-foreground mt-2">ChatGPT can make mistakes. Check important info.</p>
+        <p className="text-center text-xs text-muted-foreground mt-2">Meera AI can make mistakes. Check important info.</p>
       </div>
     </div>
   );

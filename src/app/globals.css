@@ -83,3 +83,21 @@ body {
     --tw-prose-th-borders: hsl(var(--border));
     --tw-prose-td-borders: hsl(var(--border));
 }
+
+.meera-gradient {
+  background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
+  background-size: 400% 400%;
+  animation: gradient 10s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}

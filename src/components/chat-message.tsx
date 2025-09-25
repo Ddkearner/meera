@@ -1,7 +1,8 @@
-import type { ChatMessage } from '@/lib/types';
+import type { ChatMessage as ChatMessageType } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { MeeraAvatar } from './meera-avatar';
 import { Avatar } from '@/components/ui/avatar';
+import { Prose } from '@/components/prose';
 
 export function UserAvatar({ className }: { className?: string }) {
   return (
@@ -16,28 +17,29 @@ export function UserAvatar({ className }: { className?: string }) {
   );
 }
 
-
 interface ChatMessageProps {
-  message: ChatMessage;
+  message: ChatMessageType;
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUserModel = message.role === 'model';
   return (
-    <div className={cn('group relative flex items-start animate-message-in gap-4')}>
-      {isUserModel ? (
-        <MeeraAvatar className="h-8 w-8" />
-      ) : (
-        <UserAvatar />
-      )}
+    <div
+      className={cn('group relative flex items-start animate-message-in gap-4')}
+    >
+      {isUserModel ? <MeeraAvatar className="h-8 w-8" /> : <UserAvatar />}
       <div
-        className={cn(
-          'flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]',
-        )}
+        className={cn('flex max-w-[90%] flex-col gap-1 text-sm md:max-w-[85%]', {
+          'meera-gradient rounded-lg p-4 text-white': isUserModel,
+        })}
       >
-        <div className="prose prose-sm prose-p:leading-normal break-words text-foreground dark:prose-invert prose-p:text-foreground">
+        <Prose
+          className={cn('break-words', {
+            'prose-invert': isUserModel,
+          })}
+        >
           {message.content}
-        </div>
+        </Prose>
       </div>
     </div>
   );
