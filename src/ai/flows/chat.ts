@@ -64,5 +64,6 @@ export async function streamChatWithMeera(
   const finalResponse = await chatWithMeeraFlow(input, (chunk) => {
      stream.update(chunk);
   });
+  stream.done(finalResponse);
   return { response: finalResponse };
 }

@@ -14,14 +14,15 @@ export async function runChatFlow(
   
   const stream = createStreamableValue('');
   
-  // Do not await here, but we will await the completion below
+  // Do not await here. The client needs the stream reference immediately.
+  // The work will happen in the background.
   (async () => {
     try {
       const finalResponse = await streamChatWithMeera(input, stream);
-      stream.done(finalResponse.response);
+      // stream.done() is called inside streamChatWithMeera
     } catch (e) {
-      console.error('Error in streamChatWithMeera:', e);
-      stream.done();
+      console.error('Error in streamChatWithMeera background task:', e);
+      stream.done(); // Ensure stream is closed on error
     }
   })();
 
