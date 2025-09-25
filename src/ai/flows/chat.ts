@@ -25,11 +25,9 @@ const chatWithMeeraFlow = ai.defineFlow(
 
     const response = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
+      system: systemPrompt,
       prompt: message,
       history: historyForAI,
-      config: {
-        systemInstruction: systemPrompt,
-      },
     });
 
     const textResponse =
