@@ -1,5 +1,6 @@
 'use server';
-import { chatWithMeera, type ChatInput } from '@/ai/flows/chat';
+import { chatWithMeera } from '@/ai/flows/chat';
+import type { ChatInput } from '@/lib/types';
 
 export async function runChatFlow(input: ChatInput) {
   // Simple validation to ensure input is not empty
