@@ -14,32 +14,13 @@ export function ChatMessages({
   isLoading,
 }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
-  const isAtBottom = useRef(true);
-
-  const handleScroll = () => {
-    const container = scrollableContainerRef.current;
-    if (container) {
-      const { scrollTop, scrollHeight, clientHeight } = container;
-      // We consider it "at the bottom" if it's within a small tolerance
-      isAtBottom.current = scrollHeight - scrollTop - clientHeight < 10;
-    }
-  };
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
-    if (container && isAtBottom.current) {
-      // Smoothly scroll to the bottom
+    if (container) {
       container.scrollTop = container.scrollHeight;
     }
   }, [messages, isLoading]);
-
-  useEffect(() => {
-    const container = scrollableContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, []);
 
   const lastMessage = messages[messages.length - 1];
   const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
