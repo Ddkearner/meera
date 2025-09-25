@@ -71,6 +71,10 @@ export default function ChatPage() {
     if (isTyping || typewriterText) {
       setMessages(prev => {
         if (prev.length === 0 || prev[prev.length - 1].role !== 'model') {
+          // This handles the case where a new model message needs to be added
+          if (isTyping && prev[prev.length - 1]?.role === 'user') {
+            return [...prev, { role: 'model', content: typewriterText }];
+          }
           return prev;
         }
         
@@ -142,7 +146,8 @@ export default function ChatPage() {
 
       if (response.response) {
         const modelMessage: ChatMessage = { role: 'model', content: '' };
-        setMessages(prev => [...prev, modelMessage]);
+        // This will be handled by the typewriter effect now.
+        // setMessages(prev => [...prev, modelMessage]);
         
         // Start TTS generation immediately in the background
         audioPromiseRef.current = runTtsFlow(response.response);
@@ -203,13 +208,11 @@ export default function ChatPage() {
     <div className="flex h-[100dvh] flex-col bg-background">
       <ChatHeader isListening={isListening} />
       <main className="flex-1 overflow-y-auto">
-        <div className="relative h-full">
-          {messages.length === 0 && !isLoading ? (
-            <WelcomeScreen />
-          ) : (
-            <ChatMessages messages={messages} isLoading={isLoading} />
-          )}
-        </div>
+        {messages.length === 0 && !isLoading ? (
+          <WelcomeScreen />
+        ) : (
+          <ChatMessages messages={messages} isLoading={isLoading} />
+        )}
       </main>
       <ChatInput
         onSubmit={handleSendMessage}
