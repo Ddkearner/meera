@@ -56,11 +56,16 @@ export const useSpeechRecognition = () => {
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
-      
-      for (let i = 0; i < event.results.length; ++i) {
-        finalTranscript += event.results[i][0].transcript;
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        } else {
+          interimTranscript += event.results[i][0].transcript;
+        }
       }
-      setTranscript(finalTranscript);
+      setTranscript(finalTranscript + interimTranscript);
     };
 
     // Cleanup function

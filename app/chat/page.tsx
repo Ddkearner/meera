@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
@@ -17,6 +17,7 @@ export default function ChatPage() {
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
   const [inputValue, setInputValue] = useState('');
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const audioPromiseRef = useRef<Promise<any> | null>(null);
 
   const {
     isListening,
@@ -51,22 +52,27 @@ export default function ChatPage() {
       });
     }
   }, [typewriterText, isTyping]);
-  
+
   useEffect(() => {
-    if (!isTyping && typewriterText) {
-      const speak = async () => {
-        const result = await runTtsFlow(typewriterText);
-        if ('audio' in result) {
-          const newAudio = new Audio(result.audio);
-          setAudio(newAudio);
-          newAudio.play();
-        } else {
-          console.error(result.error);
+    const playAudioWhenReady = async () => {
+      if (!isTyping && typewriterText && audioPromiseRef.current) {
+        try {
+          const result = await audioPromiseRef.current;
+          if ('audio' in result && result.audio) {
+            const newAudio = new Audio(result.audio);
+            setAudio(newAudio);
+            newAudio.play();
+          } else {
+            console.error(result.error || 'Failed to get audio.');
+          }
+        } catch (error) {
+          console.error('Error playing TTS audio:', error);
+        } finally {
+          audioPromiseRef.current = null;
         }
-      };
-      speak();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      }
+    };
+    playAudioWhenReady();
   }, [isTyping, typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
@@ -84,7 +90,7 @@ export default function ChatPage() {
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
-    setInputValue(''); 
+    setInputValue('');
     setIsLoading(true);
 
     try {
@@ -103,6 +109,11 @@ export default function ChatPage() {
       if (response.response) {
         const modelMessage: ChatMessage = { role: 'model', content: '' };
         setMessages(prev => [...prev, modelMessage]);
+        
+        // Start TTS generation immediately in the background
+        audioPromiseRef.current = runTtsFlow(response.response);
+
+        // Start typewriter effect
         startTypewriter(response.response);
       } else {
         throw new Error('No valid response from AI');
