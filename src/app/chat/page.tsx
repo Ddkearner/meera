@@ -96,6 +96,10 @@ export default function ChatPage() {
       };
 
       recognition.onerror = event => {
+        if (event.error === 'aborted') {
+          console.log('Speech recognition aborted by user.');
+          return;
+        }
         console.error('Speech recognition error:', event.error);
         toast({
           variant: 'destructive',
