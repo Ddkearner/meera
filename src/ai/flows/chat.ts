@@ -22,7 +22,7 @@ export type ChatOutput = z.infer<typeof ChatOutputSchema>;
 
 const systemPrompt = `You are Meera, a friendly, encouraging, and helpful AI assistant for students. Your primary goal is to provide clear, concise, and accurate information. Always be supportive in your tone. When formatting responses, use simple markdown like lists, bolding, and italics, but avoid tables or complex structures.`;
 
-export const chatWithMeera = ai.defineFlow(
+const chatWithMeeraFlow = ai.defineFlow(
   {
     name: 'chatWithMeeraFlow',
     inputSchema: ChatInputSchema,
@@ -51,3 +51,7 @@ export const chatWithMeera = ai.defineFlow(
     return { response: textResponse };
   }
 );
+
+export async function chatWithMeera(input: ChatInput): Promise<ChatOutput> {
+  return await chatWithMeeraFlow(input);
+}
