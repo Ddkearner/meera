@@ -8,15 +8,35 @@ import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { runChatFlow } from '@/lib/actions';
 import { useTypewriter } from '@/hooks/use-typewriter';
-import { Button } from '@/components/ui/button';
-import { Check, AppWindow, MessageCircle } from 'lucide-react';
+import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const { toast } = useToast();
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
+  const [inputValue, setInputValue] = useState('');
+
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    browserSupportsSpeechRecognition
+  } = useSpeechRecognition();
+
+  useEffect(() => {
+    // Start listening by default
+    if (browserSupportsSpeechRecognition && !isListening) {
+      startListening();
+    }
+  }, [browserSupportsSpeechRecognition, isListening, startListening]);
+
+  useEffect(() => {
+    if (transcript) {
+      setInputValue(transcript);
+    }
+  }, [transcript]);
 
   useEffect(() => {
     // This effect updates the last message with the typewriter text
@@ -36,9 +56,12 @@ export default function ChatPage() {
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
     if (!messageText) return;
+    
+    stopListening(); // Stop listening when a message is sent
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
+    setInputValue(''); // Clear input after sending
     setIsLoading(true);
 
     try {
@@ -70,6 +93,13 @@ export default function ChatPage() {
       });
       setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsLoading(false);
+    } finally {
+        // Restart listening after AI response is complete or on error
+        setTimeout(() => {
+            if (browserSupportsSpeechRecognition && !isListening) {
+                startListening();
+            }
+        }, 1000); // Small delay to avoid capturing own voice
     }
   };
 
@@ -97,6 +127,9 @@ export default function ChatPage() {
       <ChatInput
         onSubmit={handleSendMessage}
         isLoading={isLoading || isTyping}
+        isListening={isListening}
+        inputValue={inputValue}
+        setInputValue={setInputValue}
       />
     </div>
   );

@@ -67,46 +67,19 @@ body {
   }
 }
 
-/* Custom prose styles for markdown rendering */
-.prose {
-    --tw-prose-body: hsl(var(--foreground));
-    --tw-prose-headings: hsl(var(--foreground));
-    --tw-prose-lead: hsl(var(--muted-foreground));
-    --tw-prose-links: hsl(var(--primary));
-    --tw-prose-bold: hsl(var(--foreground));
-    --tw-prose-counters: hsl(var(--muted-foreground));
-    --tw-prose-bullets: hsl(var(--muted-foreground));
-    --tw-prose-hr: hsl(var(--border));
-    --tw-prose-quotes: hsl(var(--foreground));
-    --tw-prose-quote-borders: hsl(var(--border));
-    --tw-prose-captions: hsl(var(--muted-foreground));
-    --tw-prose-code: hsl(var(--foreground));
-    --tw-prose-pre-code: hsl(var(--foreground));
-    --tw-prose-pre-bg: hsl(var(--muted));
-    --tw-prose-th-borders: hsl(var(--border));
-    --tw-prose-td-borders: hsl(var(--border));
-}
-
-.dark .prose {
-    --tw-prose-body: hsl(var(--foreground));
-    --tw-prose-headings: hsl(var(--foreground));
-    --tw-prose-lead: hsl(var(--muted-foreground));
-    --tw-prose-links: hsl(var(--primary));
-    --tw-prose-bold: hsl(var(--foreground));
-    --tw-prose-counters: hsl(var(--muted-foreground));
-    --tw-prose-bullets: hsl(var(--muted-foreground));
-    --tw-prose-hr: hsl(var(--border));
-    --tw-prose-quotes: hsl(var(--foreground));
-    --tw-prose-quote-borders: hsl(var(--border));
-    --tw-prose-captions: hsl(var(--muted-foreground));
-    --tw-prose-code: hsl(var(--foreground));
-    --tw-prose-pre-code: hsl(var(--foreground));
-    --tw-prose-pre-bg: hsl(var(--muted));
-    --tw-prose-th-borders: hsl(var(--border));
-    --tw-prose-td-borders: hsl(var(--border));
-}
-
 .meera-gradient {
+  background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
+  background-size: 400% 400%;
+  animation: gradient 10s ease infinite;
+}
+
+.header-gradient {
+  background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
+  background-size: 400% 400%;
+  animation: gradient 10s ease infinite;
+}
+
+.input-gradient-border {
   background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
   background-size: 400% 400%;
   animation: gradient 10s ease infinite;
@@ -124,38 +97,12 @@ body {
   }
 }
 
-.header-gradient::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
-  background-size: 400% 400%;
-  animation: gradient 10s ease infinite;
-  z-index: -1;
-  filter: blur(15px);
-  opacity: 0.7;
-}
-
 .meera-message-container {
   position: relative;
-  padding: 2px; /* This creates the space for the border-like effect */
+  padding: 1px; /* This creates the space for the border-like effect */
   border-radius: 0.6rem; /* Slightly larger than the inner container's radius */
   overflow: hidden;
-}
-
-.meera-message-container::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
   background: linear-gradient(-45deg, #a7b3ff, #ff8da6, #b1ff91, #87d7ff);
   background-size: 400% 400%;
   animation: gradient 10s ease infinite;
-  filter: blur(10px); /* This creates the soft blended shadow */
-  z-index: 0;
 }
