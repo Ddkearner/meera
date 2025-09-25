@@ -18,25 +18,22 @@ const chatWithMeeraFlow = ai.defineFlow(
     outputSchema: ChatOutputSchema,
   },
   async ({ history, message }) => {
-    const model = ai.getModel('googleai/gemini-2.5-flash');
+    const historyForAI: MessageData[] = history.map(h => ({
+      role: h.role,
+      content: h.content,
+    }));
 
-    const contents: MessageData[] = [
-      ...history,
-      { role: 'user', content: [{ text: message }] },
-    ];
-
-    const response = await model.generate({
-      body: {
-        contents,
-        systemInstruction: {
-          role: 'system',
-          parts: [{ text: systemPrompt }],
-        },
+    const response = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
+      prompt: message,
+      history: historyForAI,
+      config: {
+        systemInstruction: systemPrompt,
       },
     });
 
     const textResponse =
-      response.candidates[0].message.content[0]?.text ??
+      response.text ??
       "I'm not sure how to respond to that. Could you try rephrasing?";
 
     return { response: textResponse };
