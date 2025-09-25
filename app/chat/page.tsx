@@ -1,17 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { runChatFlow } from '@/lib/actions';
+import { useTypewriter } from '@/hooks/use-typewriter';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
+
+  useEffect(() => {
+    if (typewriterText) {
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.role === 'model') {
+          lastMessage.content = typewriterText;
+          return newMessages;
+        }
+        return prev;
+      });
+    }
+  }, [typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
@@ -23,7 +39,6 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // The history needs to be formatted correctly for the AI flow.
       const historyForAI = newMessages.slice(0, -1).map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
@@ -40,9 +55,11 @@ export default function ChatPage() {
 
       const modelMessage: ChatMessage = {
         role: 'model',
-        content: response.response,
+        content: '',
       };
       setMessages(prev => [...prev, modelMessage]);
+      startTypewriter(response.response);
+
     } catch (error) {
       console.error('Error getting response:', error);
       toast({
@@ -50,14 +67,13 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      // Don't roll back the user message, so they know it was sent.
     } finally {
       setIsLoading(false);
     }
   };
-
+  
   const WelcomeScreen = () => (
-    <div className="flex h-full flex-col items-center justify-center text-center p-4">
+    <div className="flex h-full flex-col items-center justify-center text-center p-4 animate-message-in">
       <div className="h-32 w-32">
         <svg
           width="100%"
@@ -95,12 +111,12 @@ export default function ChatPage() {
         {messages.length === 0 && !isLoading ? (
           <WelcomeScreen />
         ) : (
-          <ChatMessages messages={messages} isLoading={isLoading} />
+          <ChatMessages messages={messages} isLoading={isLoading && !isTyping} />
         )}
       </main>
       <ChatInput
         onSubmit={handleSendMessage}
-        isLoading={isLoading}
+        isLoading={isLoading || isTyping}
       />
     </div>
   );
