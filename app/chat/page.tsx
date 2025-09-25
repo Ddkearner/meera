@@ -69,24 +69,18 @@ export default function ChatPage() {
   }, [transcript]);
 
   useEffect(() => {
+    // This effect updates the content of the last message as the typewriter runs.
     if (isTyping || typewriterText) {
       setMessages(prev => {
+        // If there are no messages or the last one isn't a model message, do nothing.
         if (prev.length === 0 || prev[prev.length - 1].role !== 'model') {
-          // This handles the case where a new model message needs to be added
-          if (isTyping && prev[prev.length - 1]?.role === 'user') {
-            return [...prev, { role: 'model', content: typewriterText }];
-          }
           return prev;
         }
         
+        // Create a new array and update the content of the last message.
         const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-    
-        if (lastMessage) {
-          lastMessage.content = typewriterText;
-          return newMessages;
-        }
-        return prev;
+        newMessages[newMessages.length - 1].content = typewriterText;
+        return newMessages;
       });
     }
   }, [typewriterText, isTyping]);
@@ -114,12 +108,13 @@ export default function ChatPage() {
           console.error('Error playing TTS audio:', error);
           isPlayingRef.current = false;
         } finally {
+          // Clear the promise ref once it has been processed.
           audioPromiseRef.current = null;
         }
       }
     };
     playAudioWhenReady();
-    // This effect should run whenever the typewriter starts or there's an audio promise
+    // This effect should run whenever the typewriter starts, to check for a pending audio promise.
   }, [isTyping, typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
@@ -137,6 +132,7 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
+    // Immediately add the user message and a placeholder for the model's response
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
@@ -157,10 +153,13 @@ export default function ChatPage() {
       setIsLoading(false);
 
       if (response.response) {
+        // Add the empty model message container *before* starting typewriter/TTS
+        setMessages(prev => [...prev, { role: 'model', content: '' }]);
+        
         // Start TTS generation immediately in the background
         audioPromiseRef.current = runTtsFlow(response.response);
 
-        // Start typewriter effect, which will also add the message container
+        // Start typewriter effect
         startTypewriter(response.response);
       } else {
         throw new Error('No valid response from AI');

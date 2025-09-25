@@ -20,7 +20,8 @@ export function useTypewriter(initialText: string = '', speed: number = 20) {
 
     intervalRef.current = setInterval(() => {
       if (indexRef.current < fullTextRef.current.length) {
-        setTypewriterText(prev => fullTextRef.current.substring(0, prev.length + 1));
+        // Use substring for more efficient string updates
+        setTypewriterText(fullTextRef.current.substring(0, indexRef.current + 1));
         indexRef.current++;
       } else {
         if (intervalRef.current) {
@@ -32,6 +33,7 @@ export function useTypewriter(initialText: string = '', speed: number = 20) {
   };
 
   useEffect(() => {
+    // Cleanup interval on unmount
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
