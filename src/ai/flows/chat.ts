@@ -28,6 +28,7 @@ const chatWithMeeraFlow = ai.defineFlow(
     name: 'chatWithMeeraFlow',
     inputSchema: StreamingChatInputSchema,
     outputSchema: z.string(),
+    stream: true,
   },
   async ({ history, message }, stream) => {
     const historyForAI: MessageData[] = history.map(h => ({
@@ -60,6 +61,8 @@ export async function streamChatWithMeera(
   input: StreamingChatInput,
   stream: StreamableValue<string>
 ): Promise<StreamingChatOutput> {
-  const finalResponse = await chatWithMeeraFlow(input, stream);
+  const finalResponse = await chatWithMeeraFlow(input, (chunk) => {
+     stream.update(chunk);
+  });
   return { response: finalResponse };
 }
