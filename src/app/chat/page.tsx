@@ -21,74 +21,26 @@ export default function ChatPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isMounted = useRef(false);
 
-  const stopListening = useCallback(() => {
+  const startListening = useCallback(() => {
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (error) {
+        // Ignore errors if recognition is already running
+        if ((error as DOMException).name !== 'InvalidStateError') {
+          console.error("Speech recognition could not start:", error);
+        }
+      }
     }
   }, []);
   
-  const startListening = useCallback(() => {
-    if (recognitionRef.current && !isListening) {
-      try {
-        recognitionRef.current.start();
-      } catch (error) {
-        console.log("Speech recognition could not start, likely already active or an error occurred.");
-      }
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
     }
-  }, [isListening]);
-
-
-  const handleSendMessage = async (values: { message: string }) => {
-    const messageText = values.message.trim();
-    if (!messageText) return;
-
-    // Stop listening to prevent it from capturing its own response
-    stopListening();
-
-    const userMessage: ChatMessage = { role: 'user', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
-    setTranscript(''); // Clear the input field
-
-    try {
-      const historyForAI = [...messages, userMessage].slice(0, -1).map(msg => ({
-        role: msg.role as 'user' | 'model',
-        content: [{ text: msg.content }],
-      }));
-
-      const response = await runChatFlow({
-        history: historyForAI,
-        message: messageText,
-      });
-
-      const modelMessage: ChatMessage = {
-        role: 'model',
-        content: response.response,
-      };
-      setMessages(prev => [...prev, modelMessage]);
-
-      const audioResponse = await runTextToSpeech(response.response);
-      if (audioResponse?.media && audioRef.current) {
-          audioRef.current.src = audioResponse.media;
-          audioRef.current.play();
-          audioRef.current.onended = () => {
-             startListening(); // Resume listening after TTS is done
-          };
-      } else {
-        startListening(); // Or resume immediately if no TTS
-      }
-    } catch (error) {
-      console.error('Error calling AI flow:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to get a response. Please try again.',
-      });
-      startListening(); // Resume listening even if there's an error
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, []);
   
   useEffect(() => {
     if (isMounted.current) return;
@@ -117,7 +69,7 @@ export default function ChatPage() {
 
       recognition.onerror = event => {
         if (event.error === 'aborted' || event.error === 'no-speech') {
-          return; // Ignore these non-critical errors
+          return;
         }
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
@@ -158,6 +110,55 @@ export default function ChatPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSendMessage = async (values: { message: string }) => {
+    const messageText = values.message.trim();
+    if (!messageText) return;
+
+    stopListening();
+
+    const userMessage: ChatMessage = { role: 'user', content: messageText };
+    setMessages(prev => [...prev, userMessage]);
+    setIsLoading(true);
+    setTranscript('');
+
+    try {
+      const historyForAI = [...messages, userMessage].slice(0, -1).map(msg => ({
+        role: msg.role as 'user' | 'model',
+        content: [{ text: msg.content }],
+      }));
+
+      const response = await runChatFlow({
+        history: historyForAI,
+        message: messageText,
+      });
+
+      const modelMessage: ChatMessage = {
+        role: 'model',
+        content: response.response,
+      };
+      setMessages(prev => [...prev, modelMessage]);
+
+      const audioResponse = await runTextToSpeech(response.response);
+      if (audioResponse?.media && audioRef.current) {
+          audioRef.current.src = audioResponse.media;
+          audioRef.current.play();
+          audioRef.current.onended = startListening;
+      } else {
+        startListening();
+      }
+    } catch (error) {
+      console.error('Error calling AI flow:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to get a response. Please try again.',
+      });
+      startListening();
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4">
@@ -182,8 +183,8 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={isListening} />
-      <main className="flex-1 overflow-y-auto" onClick={startListening}>
+      <ChatHeader isListening={isListening && messages.length > 0} />
+      <main className="flex-1 overflow-y-auto">
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (

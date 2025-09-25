@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, Mic, MicOff } from 'lucide-react';
+import { ArrowUp, MicOff } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { VoiceOrb } from './voice-orb';
@@ -43,17 +43,25 @@ export function ChatInput({
   const isManuallyTyping = useRef(false);
 
   useEffect(() => {
-    // Only update form value if user is not manually typing
     if (!isManuallyTyping.current) {
       form.setValue('message', value || '');
     }
-
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [value, form]);
+  
+  useEffect(() => {
+    // If the user starts typing, we should stop listening.
+    // However, if we are programatically setting the value from transcription,
+    // isManuallyTyping will be false, and we won't stop listening.
+    if (isManuallyTyping.current && isListening) {
+      onMicrophoneClick(); // This toggles listening off
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.watch('message')]);
+
 
   const handleFormSubmit = (values: z.infer<typeof formSchema>) => {
     if (isLoading) return;
@@ -89,13 +97,8 @@ export function ChatInput({
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleFormSubmit)}
-            className="relative flex items-start gap-2"
+            className="relative flex items-end gap-2"
           >
-            <div className="flex h-10 items-center justify-center">
-              <div onClick={onMicrophoneClick} className="cursor-pointer">
-                 <VoiceOrb isListening={!!isListening} className="h-8 w-8" />
-              </div>
-            </div>
             <div className={cn(
               "flex-1 relative",
               isListening && value && !isManuallyTyping.current && "listening-input-wrapper"
@@ -109,18 +112,33 @@ export function ChatInput({
                       <Textarea
                         ref={textareaRef}
                         placeholder="Ask anything or start speaking..."
-                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
+                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-24 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
                         rows={1}
                         onKeyDown={handleKeyDown}
                         {...field}
                         onChange={handleInputChange}
+                        onClick={() => { isManuallyTyping.current = true; }}
                       />
                     </FormControl>
                   </FormItem>
                 )}
               />
             </div>
-            <div className="absolute bottom-1.5 right-1.5 flex items-center z-10">
+            <div className="absolute bottom-1.5 right-1.5 flex items-center z-10 gap-1.5">
+               <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={onMicrophoneClick}
+                className="h-8 w-8 rounded-lg"
+              >
+                {isListening ? (
+                   <MicOff className="h-4 w-4 text-destructive" />
+                 ) : (
+                   <VoiceOrb isListening={false} className="h-5 w-5" />
+                 )}
+                 <span className="sr-only">{isListening ? 'Stop listening' : 'Start listening'}</span>
+               </Button>
               <Button
                 type="submit"
                 size="icon"
