@@ -7,9 +7,14 @@ import { MeeraAvatar } from './meera-avatar';
 interface ChatMessagesProps {
   messages: ChatMessageType[];
   isLoading: boolean;
+  streamingResponse: string;
 }
 
-export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
+export function ChatMessages({
+  messages,
+  isLoading,
+  streamingResponse,
+}: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
 
@@ -24,9 +29,9 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   useEffect(() => {
     const container = scrollableContainerRef.current;
     if (container && isAtBottom.current) {
-        container.scrollTop = container.scrollHeight;
+      container.scrollTop = container.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, streamingResponse]);
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
@@ -36,15 +41,24 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
     }
   }, []);
 
-  const lastMessage = messages[messages.length - 1];
-  const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
+  const showLoading = isLoading && !streamingResponse;
 
   return (
-    <div ref={scrollableContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">
+    <div
+      ref={scrollableContainerRef}
+      className="flex-1 overflow-y-auto p-4 md:p-6"
+    >
       <div className="mx-auto max-w-3xl space-y-8">
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
         ))}
+
+        {isLoading && streamingResponse && (
+          <ChatMessage
+            message={{ role: 'model', content: streamingResponse }}
+          />
+        )}
+
         {showLoading && (
           <div className="group relative flex items-start gap-4">
             <MeeraAvatar className="h-8 w-8" />

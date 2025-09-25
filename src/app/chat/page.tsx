@@ -33,10 +33,7 @@ export default function ChatPage() {
         ...prev,
         { role: 'model', content: finalText },
       ]);
-      // Re-enable listening after Meera finishes speaking.
-      if (recognitionRef.current && !isListening) {
-        startListening();
-      }
+      clearStreamingResponse();
     },
     onStreamError: () => {
       toast({
@@ -44,8 +41,7 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      // Re-enable listening after an error.
-      if (recognitionRef.current && !isListening) {
+       if (recognitionRef.current && !isListening) {
         startListening();
       }
     },
@@ -88,9 +84,7 @@ export default function ChatPage() {
 
       recognition.onend = () => {
         setIsListening(false);
-        // Automatically restart listening if it wasn't stopped manually
-        if (recognitionRef.current && !finalTranscriptRef.current) {
-          // A brief delay to prevent rapid-fire restarts
+        if (recognitionRef.current && !finalTranscriptRef.current && !isLoading) {
           setTimeout(() => startListening(), 100);
         }
       };
@@ -101,24 +95,23 @@ export default function ChatPage() {
         }
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
-        } else {
-           console.error('Speech recognition error:', event.error);
         }
         setIsListening(false);
       };
 
       recognition.onresult = event => {
         let interimTranscript = '';
-        finalTranscriptRef.current = '';
+        let finalTranscript = finalTranscriptRef.current;
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscriptRef.current += event.results[i][0].transcript;
+            finalTranscript += event.results[i][0].transcript;
           } else {
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        setTranscript(finalTranscriptRef.current + interimTranscript);
+        finalTranscriptRef.current = finalTranscript;
+        setTranscript(finalTranscript + interimTranscript);
       };
       
       recognitionRef.current = recognition;
@@ -191,24 +184,19 @@ export default function ChatPage() {
         </p>
     </div>
   );
-  
-  const displayMessages = useMemo(() => {
-    const allMessages = [...messages];
-    if (isLoading && streamingResponse) {
-      allMessages.push({ role: 'model', content: streamingResponse });
-    }
-    return allMessages;
-  }, [messages, isLoading, streamingResponse]);
-
 
   return (
     <div className="flex h-screen flex-col bg-background">
-       <ChatHeader isListening={isTranscribing && displayMessages.length > 0} />
+       <ChatHeader isListening={isTranscribing && messages.length > 0} />
       <main className="flex-1 overflow-y-auto">
-         {displayMessages.length === 0 && !isLoading ? (
+         {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
-          <ChatMessages messages={displayMessages} isLoading={isLoading && !streamingResponse} />
+          <ChatMessages
+            messages={messages}
+            isLoading={isLoading}
+            streamingResponse={streamingResponse}
+          />
         )}
       </main>
       <ChatInput
