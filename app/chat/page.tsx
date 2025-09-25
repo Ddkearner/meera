@@ -200,14 +200,16 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-[100dvh] flex-col bg-background">
       <ChatHeader isListening={isListening} />
-      <main className="flex-1 overflow-y-auto relative">
-        {messages.length === 0 && !isLoading ? (
-          <WelcomeScreen />
-        ) : (
-          <ChatMessages messages={messages} isLoading={isLoading} />
-        )}
+      <main className="flex-1 overflow-y-auto">
+        <div className="relative h-full">
+          {messages.length === 0 && !isLoading ? (
+            <WelcomeScreen />
+          ) : (
+            <ChatMessages messages={messages} isLoading={isLoading} />
+          )}
+        </div>
       </main>
       <ChatInput
         onSubmit={handleSendMessage}

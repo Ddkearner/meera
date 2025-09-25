@@ -13,25 +13,17 @@ export function ChatMessages({
   messages,
   isLoading,
 }: ChatMessagesProps) {
-  const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
   const lastMessage = messages[messages.length - 1];
   const showLoading = isLoading && (!lastMessage || lastMessage.role !== 'model' || lastMessage.content === '');
 
   return (
-    <div
-      ref={scrollableContainerRef}
-      className="flex-1 overflow-y-auto p-4 md:p-6"
-    >
+    <div className="p-4 md:p-6">
       <div className="mx-auto max-w-3xl space-y-8">
         {messages.map((message, index) => (
           <ChatMessage key={index} message={message} />
