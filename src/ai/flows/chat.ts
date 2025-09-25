@@ -21,6 +21,8 @@ When formatting your responses, you MUST use the following to make your messages
 - Ensure there is proper spacing between paragraphs and list items to make the response easy to read.
 - Avoid using complex markdown like tables.`;
 
+// Note: The name 'streamChatWithMeera' is kept for historical reasons,
+// but this flow now returns the full response at once.
 const chatWithMeeraFlow = ai.defineFlow(
   {
     name: 'chatWithMeeraFlow',

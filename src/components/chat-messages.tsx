@@ -7,11 +7,13 @@ import { MeeraAvatar } from './meera-avatar';
 interface ChatMessagesProps {
   messages: ChatMessageType[];
   isLoading: boolean;
+  streamingResponse?: string;
 }
 
 export function ChatMessages({
   messages,
   isLoading,
+  streamingResponse,
 }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
@@ -29,7 +31,7 @@ export function ChatMessages({
     if (container && isAtBottom.current) {
       container.scrollTop = container.scrollHeight;
     }
-  }, [messages, isLoading]);
+  }, [messages, isLoading, streamingResponse]);
 
   useEffect(() => {
     const container = scrollableContainerRef.current;
@@ -59,6 +61,9 @@ export function ChatMessages({
               </div>
             </div>
           </div>
+        )}
+        {streamingResponse && !isLoading && (
+           <ChatMessage message={{ role: 'model', content: streamingResponse }} />
         )}
       </div>
     </div>

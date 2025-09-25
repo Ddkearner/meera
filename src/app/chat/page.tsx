@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceOrb } from '@/components/voice-orb';
-import { runChatFlow, runTextToSpeech } from '@/lib/actions';
+import { runChatFlow } from '@/lib/actions';
+import { useTypewriter } from '@/hooks/use-typewriter';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -17,28 +18,10 @@ export default function ChatPage() {
 
   const { toast } = useToast();
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const finalTranscriptRef = useRef('');
   const [isListening, setIsListening] = useState(false);
 
-  const playAudio = useCallback(async (text: string) => {
-    if (!text || !audioRef.current) return;
-    try {
-      const audioResponse = await runTextToSpeech(text);
-      if (audioResponse?.media) {
-        audioRef.current.src = audioResponse.media;
-        audioRef.current.play().catch(e => console.error("Audio play failed", e));
-      }
-    } catch (error) {
-      console.error("TTS request failed", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to generate audio.",
-      });
-    }
-  }, [toast]);
-
+  const { typedResponse, startTypewriter, stopTypewriter } = useTypewriter();
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -58,10 +41,6 @@ export default function ChatPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
-
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -77,11 +56,11 @@ export default function ChatPage() {
 
       recognition.onend = () => {
         setIsListening(false);
-         if (recognitionRef.current && !finalTranscriptRef.current && !isLoading) {
+        if (recognitionRef.current && !finalTranscriptRef.current && !isLoading) {
           setTimeout(() => startListening(), 100);
         }
       };
-      
+
       recognition.onerror = event => {
         if (['aborted', 'no-speech', 'network'].includes(event.error)) {
           return;
@@ -106,7 +85,7 @@ export default function ChatPage() {
         finalTranscriptRef.current = finalTranscript;
         setTranscript(finalTranscript + interimTranscript);
       };
-      
+
       recognitionRef.current = recognition;
       startListening();
     } else {
@@ -117,10 +96,7 @@ export default function ChatPage() {
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      stopTypewriter();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -132,16 +108,16 @@ export default function ChatPage() {
     if (isListening) {
       stopListening();
     }
-    
+
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    const newMessages: ChatMessage[] = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setTranscript('');
     finalTranscriptRef.current = '';
     setIsLoading(true);
+    stopTypewriter();
 
     try {
-      const historyForAI = newMessages
+      const historyForAI = [...messages, userMessage]
         .filter(msg => msg.content.trim() !== '')
         .map(msg => ({
           role: msg.role as 'user' | 'model',
@@ -153,31 +129,36 @@ export default function ChatPage() {
         message: messageText,
       });
 
+      setIsLoading(false);
+
       if (response && response.response) {
-        const modelMessage: ChatMessage = { role: 'model', content: response.response };
-        setMessages(prev => [...prev, modelMessage]);
-        await playAudio(response.response);
+        startTypewriter(response.response, () => {
+          const finalMessage: ChatMessage = { role: 'model', content: response.response };
+          setMessages(prev => [...prev, finalMessage]);
+          if (recognitionRef.current && !isListening) {
+            startListening();
+          }
+        });
       } else {
         throw new Error("No response from AI");
       }
 
     } catch (error) {
-       toast({
+      setIsLoading(false);
+      toast({
         variant: 'destructive',
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-    } finally {
-      setIsLoading(false);
-      if (recognitionRef.current && !isListening) {
+       if (recognitionRef.current && !isListening) {
         startListening();
       }
     }
   };
-  
+
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4">
-      <VoiceOrb isListening={isListening} className="h-24 w-24" />
+      <VoiceOrb isListening={isListening} className="h-32 w-32" />
       {micError && (
         <div className="mt-8 max-w-md rounded-md bg-destructive/10 p-4 text-center text-destructive">
           <h2 className="font-semibold">Microphone Error</h2>
@@ -187,25 +168,26 @@ export default function ChatPage() {
           </button>
         </div>
       )}
-       {!isListening && !transcript && !micError && (
-         <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
-       )}
-        <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
-          {/* This space is intentionally left for the main input to handle transcript display */}
-        </p>
+      {!isListening && !transcript && !micError && (
+        <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
+      )}
+      <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
+        {/* This space is intentionally left for the main input to handle transcript display */}
+      </p>
     </div>
   );
 
   return (
     <div className="flex h-screen flex-col bg-background">
-       <ChatHeader isListening={isListening && messages.length > 0} />
+      <ChatHeader isListening={isListening && messages.length > 0} />
       <main className="flex-1 overflow-y-auto">
-         {messages.length === 0 && !isLoading ? (
-           <WelcomeScreen />
+        {messages.length === 0 && !isLoading && !typedResponse ? (
+          <WelcomeScreen />
         ) : (
           <ChatMessages
             messages={messages}
             isLoading={isLoading}
+            streamingResponse={typedResponse}
           />
         )}
       </main>
