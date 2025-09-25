@@ -10,13 +10,13 @@ const ChatHistoryMessageSchema = z.object({
   content: z.array(z.object({ text: z.string() })),
 });
 
-export const ChatInputSchema = z.object({
+export const StreamingChatInputSchema = z.object({
   history: z.array(ChatHistoryMessageSchema),
   message: z.string(),
 });
-export type ChatInput = z.infer<typeof ChatInputSchema>;
+export type StreamingChatInput = z.infer<typeof StreamingChatInputSchema>;
 
-export const ChatOutputSchema = z.object({
+export const StreamingChatOutputSchema = z.object({
   response: z.string(),
 });
-export type ChatOutput = z.infer<typeof ChatOutputSchema>;
+export type StreamingChatOutput = z.infer<typeof StreamingChatOutputSchema>;

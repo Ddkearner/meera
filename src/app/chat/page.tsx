@@ -4,15 +4,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
-import { runChatFlow, runTextToSpeech } from '@/lib/actions';
+import { runTextToSpeech } from '@/lib/actions';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { VoiceOrb } from '@/components/voice-orb';
+import { useStreamingChat } from '@/hooks/use-streaming-chat';
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [micError, setMicError] = useState<string | null>(null);
 
@@ -20,19 +19,56 @@ export default function ChatPage() {
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const finalTranscriptRef = useRef('');
+  
+  const {
+    startStream,
+    stopStream,
+    isLoading,
+    isListening,
+    setIsListening,
+    streamingResponse,
+  } = useStreamingChat({
+    onStreamEnd: (finalText) => {
+      // Update the last message with the final complete text
+      setMessages(prev => {
+        const newMessages = [...prev];
+        if (newMessages.length > 0 && newMessages[newMessages.length - 1].role === 'model') {
+          newMessages[newMessages.length - 1].content = finalText;
+        }
+        return newMessages;
+      });
+      // Re-enable listening after Meera finishes speaking.
+      if (recognitionRef.current && !isListening) {
+        startListening();
+      }
+    },
+    onStreamError: () => {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to get a response. Please try again.',
+      });
+      // Re-enable listening after an error.
+      if (recognitionRef.current && !isListening) {
+        startListening();
+      }
+    }
+  });
 
   const startListening = useCallback(() => {
     if (recognitionRef.current) {
-      finalTranscriptRef.current = transcript; // Preserve current input
+      finalTranscriptRef.current = transcript;
       recognitionRef.current.start();
+      setIsListening(true);
     }
-  }, [transcript]);
+  }, [transcript, setIsListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
+      setIsListening(false);
     }
-  }, []);
+  }, [setIsListening]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -59,7 +95,7 @@ export default function ChatPage() {
       };
 
       recognition.onerror = event => {
-        if (event.error === 'aborted' || event.error === 'no-speech' || event.error === 'network') {
+        if (['aborted', 'no-speech', 'network'].includes(event.error)) {
           return;
         }
         if (event.error === 'not-allowed') {
@@ -70,7 +106,8 @@ export default function ChatPage() {
 
       recognition.onresult = event => {
         let interimTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        finalTranscriptRef.current = '';
+        for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             finalTranscriptRef.current += event.results[i][0].transcript;
           } else {
@@ -94,6 +131,7 @@ export default function ChatPage() {
         audioRef.current.pause();
         audioRef.current = null;
       }
+      stopStream();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -102,63 +140,30 @@ export default function ChatPage() {
     const messageText = values.message.trim();
     if (!messageText) return;
 
-    // Manually stop listening before sending message
     if (isListening) {
       stopListening();
     }
-
+    
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
-    setIsLoading(true);
+    const newMessages: ChatMessage[] = [...messages, userMessage];
+    setMessages(newMessages);
+
+    // Add an empty model message to be populated by the stream
+    setMessages(prev => [...prev, { role: 'model', content: '' }]);
+
     setTranscript('');
     finalTranscriptRef.current = '';
 
-    try {
-      const historyForAI = [...messages, userMessage]
-        .slice(0, -1)
-        .map(msg => ({
-          role: msg.role as 'user' | 'model',
-          content: [{ text: msg.content }],
-        }));
+    const historyForAI = newMessages
+      .map(msg => ({
+        role: msg.role as 'user' | 'model',
+        content: [{ text: msg.content }],
+      }));
 
-      const response = await runChatFlow({
-        history: historyForAI,
-        message: messageText,
-      });
-
-      const modelMessage: ChatMessage = {
-        role: 'model',
-        content: response.response,
-      };
-      setMessages(prev => [...prev, modelMessage]);
-
-      const audioResponse = await runTextToSpeech(response.response);
-      if (audioResponse?.media && audioRef.current) {
-        audioRef.current.src = audioResponse.media;
-        audioRef.current.play().catch(e => console.error("Audio play failed", e));
-        audioRef.current.onended = () => {
-           if (!isListening && recognitionRef.current?.readyState !== 1) {
-             startListening();
-           }
-        }
-      } else {
-        if (!isListening && recognitionRef.current?.readyState !== 1) {
-          startListening();
-        }
-      }
-    } catch (error) {
-      console.error('Error calling AI flow:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to get a response. Please try again.',
-      });
-       if (!isListening && recognitionRef.current?.readyState !== 1) {
-          startListening();
-        }
-    } finally {
-      setIsLoading(false);
-    }
+    startStream({
+      history: historyForAI,
+      message: messageText,
+    });
   };
 
   const isTranscribing = isListening && transcript.length > 0;
@@ -183,15 +188,21 @@ export default function ChatPage() {
         </p>
     </div>
   );
+  
+  // Replace the last message with the streaming response if it's loading
+  const displayMessages = [...messages];
+  if (isLoading && displayMessages.length > 0 && displayMessages[displayMessages.length - 1].role === 'model') {
+      displayMessages[displayMessages.length - 1].content = streamingResponse;
+  }
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={isTranscribing && messages.length > 0} />
+      <ChatHeader isListening={(isTranscribing || isLoading) && messages.length > 0} />
       <main className="flex-1 overflow-y-auto">
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
-          <ChatMessages messages={messages} isLoading={isLoading} />
+          <ChatMessages messages={displayMessages} isLoading={isLoading && streamingResponse.length === 0} />
         )}
       </main>
       <ChatInput

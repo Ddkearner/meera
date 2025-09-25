@@ -11,12 +11,30 @@ interface ChatMessagesProps {
 
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
+  const isAtBottom = useRef(true);
+
+  const handleScroll = () => {
+    const container = scrollableContainerRef.current;
+    if (container) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      isAtBottom.current = scrollHeight - scrollTop - clientHeight < 10;
+    }
+  };
 
   useEffect(() => {
-    if (scrollableContainerRef.current) {
-      scrollableContainerRef.current.scrollTop = scrollableContainerRef.current.scrollHeight;
+    const container = scrollableContainerRef.current;
+    if (container && isAtBottom.current) {
+        container.scrollTop = container.scrollHeight;
     }
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    const container = scrollableContainerRef.current;
+    if (container) {
+      container.addEventListener('scroll', handleScroll);
+      return () => container.removeEventListener('scroll', handleScroll);
+    }
+  }, []);
 
   return (
     <div ref={scrollableContainerRef} className="flex-1 overflow-y-auto p-4 md:p-6">

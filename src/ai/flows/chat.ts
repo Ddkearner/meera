@@ -3,11 +3,12 @@
 import { ai } from '@/ai/genkit';
 import type { MessageData } from 'genkit/generate';
 import {
-  ChatInputSchema,
-  ChatOutputSchema,
-  type ChatInput,
-  type ChatOutput,
+  StreamingChatInputSchema,
+  StreamingChatOutputSchema,
+  type StreamingChatInput,
+  type StreamingChatOutput,
 } from '@/lib/types';
+import { z } from 'zod';
 
 const systemPrompt = `You are Meera, a friendly, encouraging, and helpful AI assistant for students. Your primary goal is to provide clear, concise, and accurate information. 
 
@@ -23,30 +24,43 @@ When formatting your responses, you MUST use the following to make your messages
 const chatWithMeeraFlow = ai.defineFlow(
   {
     name: 'chatWithMeeraFlow',
-    inputSchema: ChatInputSchema,
-    outputSchema: ChatOutputSchema,
+    inputSchema: StreamingChatInputSchema,
+    outputSchema: z.string(),
+    stream: z.string(),
   },
-  async ({ history, message }) => {
+  async ({ history, message }, streamingCallback) => {
     const historyForAI: MessageData[] = history.map(h => ({
       role: h.role,
       content: h.content,
     }));
 
-    const response = await ai.generate({
+    const { stream } = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
       system: systemPrompt,
       prompt: message,
       history: historyForAI,
+      stream: true,
     });
 
-    const textResponse =
-      response.text ??
-      "I'm not sure how to respond to that. Could you try rephrasing?";
+    let responseText = '';
+    for await (const chunk of stream) {
+      const text = chunk.text;
+      if (text) {
+        responseText += text;
+        if (streamingCallback) {
+          streamingCallback(text);
+        }
+      }
+    }
 
-    return { response: textResponse };
+    return responseText;
   }
 );
 
-export async function chatWithMeera(input: ChatInput): Promise<ChatOutput> {
-  return await chatWithMeeraFlow(input);
+export async function streamChatWithMeera(
+  input: StreamingChatInput,
+  streamingCallback: (chunk: string) => void
+): Promise<StreamingChatOutput> {
+  const finalResponse = await chatWithMeeraFlow(input, streamingCallback);
+  return { response: finalResponse };
 }
