@@ -19,8 +19,6 @@ export default function ChatPage() {
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
   const [inputValue, setInputValue] = useState('');
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const audioPromiseRef = useRef<Promise<any> | null>(null);
-  const isPlayingRef = useRef(false);
 
   const {
     isListening,
@@ -85,37 +83,6 @@ export default function ChatPage() {
     }
   }, [typewriterText, isTyping]);
   
-  useEffect(() => {
-    const playAudioWhenReady = async () => {
-      // Play audio as soon as it's ready, even if typing is not finished.
-      if (audioPromiseRef.current && !isPlayingRef.current) {
-        isPlayingRef.current = true;
-        try {
-          const result = await audioPromiseRef.current;
-          if ('audio' in result && result.audio) {
-            const newAudio = new Audio(result.audio);
-            newAudio.onended = () => {
-              isPlayingRef.current = false;
-              setAudio(null);
-            };
-            setAudio(newAudio);
-            newAudio.play();
-          } else {
-            console.error(result.error || 'Failed to get audio.');
-            isPlayingRef.current = false;
-          }
-        } catch (error) {
-          console.error('Error playing TTS audio:', error);
-          isPlayingRef.current = false;
-        } finally {
-          // Clear the promise ref once it has been processed.
-          audioPromiseRef.current = null;
-        }
-      }
-    };
-    playAudioWhenReady();
-    // This effect should run whenever the typewriter starts, to check for a pending audio promise.
-  }, [isTyping, typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
@@ -124,7 +91,6 @@ export default function ChatPage() {
     if (audio) {
       audio.pause();
       setAudio(null);
-      isPlayingRef.current = false;
     }
 
     if (isListening) {
@@ -132,35 +98,43 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    // Immediately add the user message and a placeholder for the model's response
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // We pass the new user message in the history immediately
       const historyForAI = [...messages, userMessage].map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
       
+      // 1. Get the text response from the AI first
       const response = await runChatFlow({
-        // Pass the updated history
         history: historyForAI,
         message: messageText,
       });
 
-      setIsLoading(false);
-
       if (response.response) {
-        // Add the empty model message container *before* starting typewriter/TTS
-        setMessages(prev => [...prev, { role: 'model', content: '' }]);
-        
-        // Start TTS generation immediately in the background
-        audioPromiseRef.current = runTtsFlow(response.response);
+        // 2. Generate the audio from the response text.
+        // The user still sees the loading indicator.
+        const audioResult = await runTtsFlow(response.response);
 
-        // Start typewriter effect
+        // 3. Once audio is ready, stop loading and add the empty message container.
+        setIsLoading(false);
+        setMessages(prev => [...prev, { role: 'model', content: '' }]);
+
+        // 4. Play audio and start the typewriter SIMULTANEOUSLY.
+        if ('audio' in audioResult && audioResult.audio) {
+          const newAudio = new Audio(audioResult.audio);
+          newAudio.onended = () => setAudio(null);
+          setAudio(newAudio);
+          newAudio.play();
+        } else {
+          console.error(audioResult.error || 'Failed to get audio.');
+        }
+
         startTypewriter(response.response);
+
       } else {
         throw new Error('No valid response from AI');
       }
@@ -171,8 +145,8 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      // Revert message update on error
-      setMessages(prev => prev.filter(msg => msg.content !== userMessage.content));
+      // Revert message update on error by removing the last user message
+      setMessages(prev => prev.slice(0, -1));
       setIsLoading(false);
     } finally {
       if (browserSupportsSpeechRecognition) {
