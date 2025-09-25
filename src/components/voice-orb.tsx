@@ -3,25 +3,25 @@
 import { cn } from "@/lib/utils";
 
 interface VoiceOrbProps {
-  transcript: string;
   isListening: boolean;
+  className?: string;
 }
 
-export function VoiceOrb({ transcript, isListening }: VoiceOrbProps) {
+export function VoiceOrb({ isListening, className }: VoiceOrbProps) {
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div className="relative h-48 w-48 md:h-64 md:w-64">
+    <div className={cn("flex flex-col items-center justify-center", className)}>
+      <div className="relative h-full w-full">
         <div className={cn(
           "absolute inset-0 rounded-full meera-gradient transition-all duration-500",
-          isListening ? "animate-pulse-slow blur-2xl" : "blur-xl"
+          isListening ? "animate-pulse-slow blur-xl" : "blur-lg opacity-70"
         )}></div>
         <div className={cn(
-          "absolute inset-4 rounded-full meera-gradient transition-all duration-500",
-          isListening ? "animate-pulse-medium blur-xl" : "blur-lg"
+          "absolute inset-[15%] rounded-full meera-gradient transition-all duration-500",
+          isListening ? "animate-pulse-medium blur-md" : "blur-sm opacity-80"
         )}></div>
         <div className={cn(
-          "absolute inset-8 rounded-full meera-gradient transition-all duration-500",
-           isListening ? "" : "opacity-80"
+          "absolute inset-[25%] rounded-full meera-gradient transition-all duration-500",
+           isListening ? "" : "opacity-90"
         )}></div>
       </div>
     </div>

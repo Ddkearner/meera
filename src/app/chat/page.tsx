@@ -24,15 +24,13 @@ export default function ChatPage() {
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
-      setIsListening(false);
     }
   }, []);
-
+  
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       try {
         recognitionRef.current.start();
-        setIsListening(true);
       } catch (error) {
         console.log("Speech recognition could not start, likely already active or an error occurred.");
       }
@@ -48,13 +46,12 @@ export default function ChatPage() {
     stopListening();
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
     setTranscript(''); // Clear the input field
 
     try {
-      const historyForAI = newMessages.slice(0, -1).map(msg => ({
+      const historyForAI = [...messages, userMessage].slice(0, -1).map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
@@ -122,9 +119,10 @@ export default function ChatPage() {
         if (event.error === 'aborted' || event.error === 'no-speech') {
           return; // Ignore these non-critical errors
         }
-        console.error('Speech recognition error:', event.error);
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
+        } else {
+           console.error('Speech recognition error:', event.error);
         }
         setIsListening(false);
       };
@@ -163,9 +161,7 @@ export default function ChatPage() {
   
   const WelcomeScreen = () => (
     <div className="flex h-full flex-col items-center justify-center text-center p-4">
-      <div onClick={isListening ? stopListening : startListening}>
-        <VoiceOrb transcript={transcript} isListening={isListening} />
-      </div>
+      <VoiceOrb isListening={isListening} />
       {micError && (
         <div className="mt-8 max-w-md rounded-md bg-destructive/10 p-4 text-center text-destructive">
           <h2 className="font-semibold">Microphone Error</h2>
@@ -178,9 +174,6 @@ export default function ChatPage() {
        {!isListening && !transcript && !micError && (
          <h2 className="mt-8 text-2xl font-semibold text-gray-700">How can I help you today?</h2>
        )}
-       {isListening && !transcript && !micError && (
-         <p className="mt-8 text-2xl font-semibold text-foreground h-8">Listening...</p>
-       )}
         <p className="mt-4 max-w-xl text-center text-lg text-muted-foreground min-h-[56px]">
           {/* This space is intentionally left for the main input to handle transcript display */}
         </p>
@@ -189,7 +182,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader />
+      <ChatHeader isListening={isListening} />
       <main className="flex-1 overflow-y-auto" onClick={startListening}>
          {messages.length === 0 && !isLoading ? (
            <WelcomeScreen />

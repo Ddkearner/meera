@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowUp, Mic, MicOff } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { VoiceOrb } from './voice-orb';
 
 const formSchema = z.object({
   message: z.string().min(1),
@@ -90,6 +91,11 @@ export function ChatInput({
             onSubmit={form.handleSubmit(handleFormSubmit)}
             className="relative flex items-start gap-2"
           >
+            <div className="flex h-10 items-center justify-center">
+              <div onClick={onMicrophoneClick} className="cursor-pointer">
+                 <VoiceOrb isListening={!!isListening} className="h-8 w-8" />
+              </div>
+            </div>
             <div className={cn(
               "flex-1 relative",
               isListening && value && !isManuallyTyping.current && "listening-input-wrapper"
@@ -103,7 +109,7 @@ export function ChatInput({
                       <Textarea
                         ref={textareaRef}
                         placeholder="Ask anything or start speaking..."
-                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-20 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
+                        className="max-h-48 resize-none rounded-2xl border-border/80 bg-card pr-12 shadow-sm focus-visible:ring-1 focus-visible:ring-ring pl-4"
                         rows={1}
                         onKeyDown={handleKeyDown}
                         {...field}
@@ -114,19 +120,7 @@ export function ChatInput({
                 )}
               />
             </div>
-            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 z-10">
-              {isListening && (
-                 <Button
-                  type="button"
-                  size="icon"
-                  variant="destructive"
-                  className="h-8 w-8 rounded-lg bg-red-500 hover:bg-red-600"
-                  onClick={onMicrophoneClick}
-                >
-                  <MicOff className="h-4 w-4" />
-                  <span className="sr-only">Stop listening</span>
-                </Button>
-              )}
+            <div className="absolute bottom-1.5 right-1.5 flex items-center z-10">
               <Button
                 type="submit"
                 size="icon"
