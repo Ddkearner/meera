@@ -126,18 +126,19 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    const newMessages: ChatMessage[] = [...messages, userMessage];
-    setMessages(newMessages);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const historyForAI = newMessages.map(msg => ({
+      // We pass the new user message in the history immediately
+      const historyForAI = [...messages, userMessage].map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
       
       const response = await runChatFlow({
+        // Pass the updated history
         history: historyForAI,
         message: messageText,
       });
@@ -145,14 +146,12 @@ export default function ChatPage() {
       setIsLoading(false);
 
       if (response.response) {
-        const modelMessage: ChatMessage = { role: 'model', content: '' };
         // This will be handled by the typewriter effect now.
-        // setMessages(prev => [...prev, modelMessage]);
         
         // Start TTS generation immediately in the background
         audioPromiseRef.current = runTtsFlow(response.response);
 
-        // Start typewriter effect
+        // Start typewriter effect, which will also add the message container
         startTypewriter(response.response);
       } else {
         throw new Error('No valid response from AI');
