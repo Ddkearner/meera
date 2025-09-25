@@ -68,23 +68,22 @@ export default function ChatPage() {
   }, [transcript]);
 
   useEffect(() => {
-    setMessages(prev => {
-      // Do nothing if there are no messages or the last one isn't from the model
-      if (prev.length === 0 || prev[prev.length - 1].role !== 'model') {
+    if (isTyping || typewriterText) {
+      setMessages(prev => {
+        if (prev.length === 0 || prev[prev.length - 1].role !== 'model') {
+          return prev;
+        }
+        
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+    
+        if (lastMessage) {
+          lastMessage.content = typewriterText;
+          return newMessages;
+        }
         return prev;
-      }
-      
-      const newMessages = [...prev];
-      const lastMessage = newMessages[newMessages.length - 1];
-  
-      // Only update if the last message is from the model and the typewriter is active.
-      if (lastMessage && (isTyping || typewriterText)) {
-        // Prevent adding 'undefined' to the content
-        lastMessage.content = typewriterText || '';
-        return newMessages;
-      }
-      return prev;
-    });
+      });
+    }
   }, [typewriterText, isTyping]);
   
   useEffect(() => {
@@ -123,16 +122,21 @@ export default function ChatPage() {
     }
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      const historyForAI = messages.map(msg => ({
+      const historyForAI = newMessages.map(msg => ({
         role: msg.role as 'user' | 'model',
         content: [{ text: msg.content }],
       }));
 
+      // Remove the last message from the history sent to the AI
+      // as it is the current user prompt.
+      historyForAI.pop();
+      
       const response = await runChatFlow({
         history: historyForAI,
         message: messageText,
@@ -159,7 +163,8 @@ export default function ChatPage() {
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
       });
-      setMessages(prev => prev.filter(msg => msg.content !== userMessage.content)); // More robust removal
+      // Revert message update on error
+      setMessages(prev => prev.filter(msg => msg.content !== userMessage.content));
       setIsLoading(false);
     } finally {
       if (browserSupportsSpeechRecognition) {
