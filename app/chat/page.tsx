@@ -6,7 +6,7 @@ import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
 import type { ChatMessage } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { runChatFlow } from '@/lib/actions';
+import { runChatFlow, runTtsFlow } from '@/lib/actions';
 import { useTypewriter } from '@/hooks/use-typewriter';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
 
@@ -16,6 +16,7 @@ export default function ChatPage() {
   const { toast } = useToast();
   const { typewriterText, startTypewriter, isTyping } = useTypewriter('');
   const [inputValue, setInputValue] = useState('');
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 
   const {
     isListening,
@@ -25,14 +26,11 @@ export default function ChatPage() {
     browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
 
-  // This effect now correctly depends only on browser support and the start function reference.
-  // It will run once on mount if speech recognition is supported.
   useEffect(() => {
     if (browserSupportsSpeechRecognition && !isListening) {
       startListening();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserSupportsSpeechRecognition]);
+  }, [browserSupportsSpeechRecognition, isListening, startListening]);
 
   useEffect(() => {
     if (transcript) {
@@ -41,7 +39,6 @@ export default function ChatPage() {
   }, [transcript]);
 
   useEffect(() => {
-    // This effect updates the last message with the typewriter text
     if (isTyping || typewriterText) {
       setMessages(prev => {
         const newMessages = [...prev];
@@ -54,10 +51,32 @@ export default function ChatPage() {
       });
     }
   }, [typewriterText, isTyping]);
+  
+  useEffect(() => {
+    if (!isTyping && typewriterText) {
+      const speak = async () => {
+        const result = await runTtsFlow(typewriterText);
+        if ('audio' in result) {
+          const newAudio = new Audio(result.audio);
+          setAudio(newAudio);
+          newAudio.play();
+        } else {
+          console.error(result.error);
+        }
+      };
+      speak();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTyping, typewriterText]);
 
   const handleSendMessage = async (values: { message: string }) => {
     const messageText = values.message.trim();
     if (!messageText) return;
+
+    if (audio) {
+      audio.pause();
+      setAudio(null);
+    }
 
     if (isListening) {
       stopListening();
@@ -65,7 +84,7 @@ export default function ChatPage() {
 
     const userMessage: ChatMessage = { role: 'user', content: messageText };
     setMessages(prev => [...prev, userMessage]);
-    setInputValue(''); // Clear input after sending
+    setInputValue(''); 
     setIsLoading(true);
 
     try {
@@ -98,21 +117,22 @@ export default function ChatPage() {
       setMessages(prev => prev.filter(msg => msg !== userMessage));
       setIsLoading(false);
     } finally {
-      // Restart listening after AI response is complete or on error, if supported
       if (browserSupportsSpeechRecognition) {
-        // A short delay helps prevent race conditions with the speech recognition service
         const restartTimeout = setTimeout(() => {
           if (!isListening) {
             startListening();
           }
         }, 500);
-        // Cleanup timeout on component unmount
         return () => clearTimeout(restartTimeout);
       }
     }
   };
 
   const handleVoiceToggle = () => {
+    if (audio) {
+      audio.pause();
+      setAudio(null);
+    }
     if (isListening) {
       stopListening();
     } else {
