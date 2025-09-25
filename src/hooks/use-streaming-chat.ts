@@ -7,14 +7,14 @@ import { useToast } from './use-toast';
 import { readStreamableValue } from 'ai/rsc';
 
 interface UseStreamingChatProps {
-  setMessages: Dispatch<SetStateAction<ChatMessage[]>>;
   onStreamEnd?: (finalText: string) => void;
   onStreamError?: (error: Error) => void;
 }
 
-export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: UseStreamingChatProps) {
+export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingChatProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [streamingResponse, setStreamingResponse] = useState('');
   const { toast } = useToast();
   const audioQueue = useRef<string[]>([]);
   const isPlayingAudio = useRef(false);
@@ -75,7 +75,7 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
 
   const startStream = useCallback(async (input: StreamingChatInput) => {
     setIsLoading(true);
-    setMessages(prev => [...prev, { role: 'model', content: '' }]);
+    setStreamingResponse('');
     audioQueue.current = [];
     isPlayingAudio.current = false;
     if (audioRef.current) {
@@ -89,14 +89,7 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
       for await (const chunk of readStreamableValue(stream)) {
         if (chunk) {
           accumulatedText += chunk;
-          setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.role === 'model') {
-              lastMessage.content += chunk;
-            }
-            return newMessages;
-          });
+          setStreamingResponse(prev => prev + chunk);
           processTextForAudio(chunk);
         }
       }
@@ -117,19 +110,15 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
       if (!isPlayingAudio.current && audioQueue.current.length === 0) {
         clearInterval(checkAudio);
         setIsLoading(false);
-        setMessages(prev => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage && lastMessage.role === 'model') {
-              lastMessage.content = accumulatedText;
-            }
-            return newMessages;
-        });
         onStreamEnd?.(accumulatedText);
       }
     }, 100);
 
-  }, [setMessages, onStreamEnd, onStreamError, processTextForAudio, toast]);
+  }, [onStreamEnd, onStreamError, processTextForAudio, toast]);
+  
+  const clearStreamingResponse = useCallback(() => {
+    setStreamingResponse('');
+  }, []);
 
   const stopStream = useCallback(() => {
     setIsLoading(false);
@@ -146,5 +135,7 @@ export function useStreamingChat({ setMessages, onStreamEnd, onStreamError }: Us
     isLoading,
     isListening,
     setIsListening,
+    streamingResponse,
+    clearStreamingResponse
   };
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { ChatHeader } from '@/components/chat-header';
 import { ChatInput } from '@/components/chat-input';
 import { ChatMessages } from '@/components/chat-messages';
@@ -25,9 +25,14 @@ export default function ChatPage() {
     isLoading,
     isListening,
     setIsListening,
+    streamingResponse,
+    clearStreamingResponse,
   } = useStreamingChat({
-    setMessages,
-    onStreamEnd: () => {
+    onStreamEnd: (finalText: string) => {
+      setMessages(prev => [
+        ...prev,
+        { role: 'model', content: finalText },
+      ]);
       // Re-enable listening after Meera finishes speaking.
       if (recognitionRef.current && !isListening) {
         startListening();
@@ -43,7 +48,7 @@ export default function ChatPage() {
       if (recognitionRef.current && !isListening) {
         startListening();
       }
-    }
+    },
   });
 
   const startListening = useCallback(() => {
@@ -96,22 +101,24 @@ export default function ChatPage() {
         }
         if (event.error === 'not-allowed') {
           setMicError("Microphone access denied. Please enable it in your browser settings to use voice input.");
+        } else {
+           console.error('Speech recognition error:', event.error);
         }
         setIsListening(false);
       };
 
       recognition.onresult = event => {
         let interimTranscript = '';
-        let finalTranscript = finalTranscriptRef.current;
+        finalTranscriptRef.current = '';
+
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
+            finalTranscriptRef.current += event.results[i][0].transcript;
           } else {
             interimTranscript += event.results[i][0].transcript;
           }
         }
-        finalTranscriptRef.current = finalTranscript;
-        setTranscript(finalTranscript + interimTranscript);
+        setTranscript(finalTranscriptRef.current + interimTranscript);
       };
       
       recognitionRef.current = recognition;
@@ -147,6 +154,7 @@ export default function ChatPage() {
 
     setTranscript('');
     finalTranscriptRef.current = '';
+    clearStreamingResponse();
 
     const historyForAI = newMessages
       .filter(msg => msg.content.trim() !== '') // Exclude empty messages
@@ -183,15 +191,24 @@ export default function ChatPage() {
         </p>
     </div>
   );
+  
+  const displayMessages = useMemo(() => {
+    const allMessages = [...messages];
+    if (isLoading && streamingResponse) {
+      allMessages.push({ role: 'model', content: streamingResponse });
+    }
+    return allMessages;
+  }, [messages, isLoading, streamingResponse]);
+
 
   return (
     <div className="flex h-screen flex-col bg-background">
-      <ChatHeader isListening={(isTranscribing || isLoading) && messages.length > 0} />
+       <ChatHeader isListening={isTranscribing && displayMessages.length > 0} />
       <main className="flex-1 overflow-y-auto">
-         {messages.length === 0 && !isLoading ? (
+         {displayMessages.length === 0 && !isLoading ? (
            <WelcomeScreen />
         ) : (
-          <ChatMessages messages={messages} isLoading={isLoading} />
+          <ChatMessages messages={displayMessages} isLoading={isLoading && !streamingResponse} />
         )}
       </main>
       <ChatInput
