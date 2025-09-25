@@ -47,9 +47,6 @@ export function useTypewriter(onEnd?: (finalText: string) => void) {
     }
      if (audioRef.current) {
         audioRef.current.pause();
-        // By setting src to '', we ensure that the audio stops immediately
-        // and doesn't continue playing the buffered content.
-        audioRef.current.src = '';
     }
     setTypedResponse('');
   }, []);
