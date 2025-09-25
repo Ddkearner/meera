@@ -6,17 +6,21 @@ import { createStreamableValue } from 'ai/rsc';
 import type { StreamableValue } from 'ai/rsc';
 
 export async function runChatFlow(
-  input: StreamingChatInput,
-  stream: StreamableValue<string>
-) {
+  input: StreamingChatInput
+): Promise<{ stream: StreamableValue<string> }> {
   if (!input.message.trim()) {
     throw new Error('Message cannot be empty.');
   }
+  
+  const stream = createStreamableValue('');
+  
+  // Do not await this, let it run in the background
+  (async () => {
+    const finalResponse = await streamChatWithMeera(input, stream);
+    stream.done(finalResponse.response);
+  })();
 
-  const finalResponse = await streamChatWithMeera(input, stream);
-  stream.done(finalResponse);
-
-  return finalResponse;
+  return { stream: stream.value };
 }
 
 

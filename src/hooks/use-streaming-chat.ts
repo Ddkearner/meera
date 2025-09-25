@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { runChatFlow, runTextToSpeech } from '@/lib/actions';
 import type { StreamingChatInput } from '@/lib/types';
 import { useToast } from './use-toast';
-import { createStreamableValue, readStreamableValue } from 'ai/rsc';
+import { readStreamableValue } from 'ai/rsc';
 
 interface UseStreamingChatProps {
   onStreamEnd?: (finalText: string) => void;
@@ -38,15 +38,15 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
         if (audioResponse?.media) {
           audioRef.current.src = audioResponse.media;
           
-          await new Promise<void>((resolve) => {
-            if (audioRef.current?.paused) {
-              resolve();
-            } else {
-              audioRef.current?.addEventListener('ended', () => resolve(), { once: true });
-            }
-          });
-          
-          await audioRef.current.play();
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(error => {
+              console.error("Audio play failed", error);
+              isPlayingAudio.current = false;
+              playNextAudio(); // Try next in queue
+            });
+          }
+
           audioRef.current.onended = () => {
             isPlayingAudio.current = false;
             playNextAudio();
@@ -56,7 +56,7 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
           playNextAudio();
         }
       } catch (error) {
-        console.error("Audio play failed", error);
+        console.error("TTS request failed", error);
         isPlayingAudio.current = false;
         playNextAudio();
       }
@@ -78,16 +78,20 @@ export function useStreamingChat({ onStreamEnd, onStreamError }: UseStreamingCha
     setStreamingResponse('');
     audioQueue.current = [];
     isPlayingAudio.current = false;
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
     
-    const streamable = createStreamableValue('');
-    runChatFlow(input, streamable.value);
-
     try {
+      const { stream } = await runChatFlow(input);
+      
       let accumulatedText = '';
-      for await (const chunk of readStreamableValue(streamable)) {
+      for await (const chunk of readStreamableValue(stream)) {
+        if (chunk) {
           accumulatedText += chunk;
           setStreamingResponse(prev => prev + chunk);
           processTextForAudio(chunk);
+        }
       }
 
       const checkAudio = setInterval(() => {
